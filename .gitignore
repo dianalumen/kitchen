@@ -1,0 +1,4 @@
+config.js
+*.backup
+supabase/seed/*.sql
+.DS_Store
