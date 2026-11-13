@@ -257,7 +257,7 @@ The shopping list is the main realtime use case — one person ticks items off i
 
 ### 5.7. Storage (dish photos)
 
-Pattern from 3d-print: bucket `recipe-images`, path `<user_id>/<timestamp>-<random>.<ext>`, policies allowing upload and delete only in your own folder. Public bucket (the image URL is enough to display it), since food photos aren't sensitive; if that changes, use a private bucket + `createSignedUrl`.
+Bucket `recipe-images`, path `<household_id>/<timestamp>-<random>.<ext>`. Like every table, files belong to the household: policies on `storage.objects` let any member read, upload, replace and delete in their household's folder (`(storage.foldername(name))[1] = current_household()::text`), and nobody else can write. This differs from 3d-print's per-user folders on purpose: with those, one of us could not replace or delete a photo the other added, which is the access problem this app exists to fix. Public bucket (the image URL is enough to display it), since food photos aren't sensitive; if that changes, use a private bucket + `createSignedUrl`.
 
 **Resize photos in the browser before upload** (canvas → JPEG/WebP, max ~1600 px) so 5 MB phone photos don't eat the free-tier quota.
 

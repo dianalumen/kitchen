@@ -366,34 +366,70 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- Public bucket: the URL is enough to show a photo (food photos are not
--- sensitive). Uploads go to "<user_id>/<timestamp>-<random>.<ext>"; a user can
--- upload to, list and delete only their own folder.
+-- sensitive). Files are shared by the household like every other row: uploads
+-- go to "<household_id>/<timestamp>-<random>.<ext>", and any member can read,
+-- upload, replace and delete files in their household's folder (so either of
+-- us can change or remove a photo the other added). Nobody else can write.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('recipe-images', 'recipe-images', true, 5242880,
         array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
+-- Policies from the first M1 draft (per-user folders).
 drop policy if exists "recipe images: read own folder" on storage.objects;
-create policy "recipe images: read own folder" on storage.objects
+drop policy if exists "recipe images: upload to own folder" on storage.objects;
+drop policy if exists "recipe images: delete from own folder" on storage.objects;
+
+drop policy if exists "recipe images: household folder read" on storage.objects;
+create policy "recipe images: household folder read" on storage.objects
   for select to authenticated
   using (bucket_id = 'recipe-images'
-         and (storage.foldername(name))[1] = (select auth.uid())::text);
+         and (storage.foldername(name))[1] = (select public.current_household())::text);
 
-drop policy if exists "recipe images: upload to own folder" on storage.objects;
-create policy "recipe images: upload to own folder" on storage.objects
+drop policy if exists "recipe images: household folder upload" on storage.objects;
+create policy "recipe images: household folder upload" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'recipe-images'
-              and (storage.foldername(name))[1] = (select auth.uid())::text);
+              and (storage.foldername(name))[1] = (select public.current_household())::text);
 
-drop policy if exists "recipe images: delete from own folder" on storage.objects;
-create policy "recipe images: delete from own folder" on storage.objects
+drop policy if exists "recipe images: household folder update" on storage.objects;
+create policy "recipe images: household folder update" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'recipe-images'
+         and (storage.foldername(name))[1] = (select public.current_household())::text)
+  with check (bucket_id = 'recipe-images'
+              and (storage.foldername(name))[1] = (select public.current_household())::text);
+
+drop policy if exists "recipe images: household folder delete" on storage.objects;
+create policy "recipe images: household folder delete" on storage.objects
   for delete to authenticated
   using (bucket_id = 'recipe-images'
-         and (storage.foldername(name))[1] = (select auth.uid())::text);
+         and (storage.foldername(name))[1] = (select public.current_household())::text);
 
 
 -- ---------------------------------------------------------------------------
--- 6. RPCs
+-- 6. Supabase-managed functions in public
+-- ---------------------------------------------------------------------------
+
+-- The project setting "Enable automatic RLS" installs public.rls_auto_enable(),
+-- an event-trigger function, and Supabase's default privileges make it
+-- executable by anon and authenticated (so it would show up as an RPC). Client
+-- roles never need EXECUTE on it: an event trigger fires its function without
+-- checking the EXECUTE privilege of the role running the DDL (privileges are
+-- checked only when the event trigger is created, by its superuser owner), so
+-- automatic RLS keeps working. Guarded, because the function exists only while
+-- that setting is on.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- 7. RPCs
 -- ---------------------------------------------------------------------------
 -- All: security definer, search_path = public, auth.uid() check, everything
 -- filtered by the caller's household, errors as short English codes:

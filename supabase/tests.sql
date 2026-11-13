@@ -451,15 +451,37 @@ begin
 
     -- -----------------------------------------------------------------------
     step := '9 storage';
+    -- Lets a direct DELETE on storage.objects through Supabase's guard trigger
+    -- (newer storage versions block SQL deletes unless this is set); policies
+    -- still apply. Harmless where the guard does not exist.
+    perform set_config('storage.allow_delete_query', 'true', true);
     perform pg_temp.kt_as(u_a);
-    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, u_a || '/kt-test.jpg'));
-    log := log || pg_temp.kt_res(s = 'ok 1', 'storage: A uploads into their own folder', s);
+    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, h_a || '/kt-a.jpg'));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'storage: A uploads into the household folder', s);
+    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, u_a || '/kt-user.jpg'));
+    log := log || pg_temp.kt_res(s like 'error 42501%', 'storage: uploads outside the household folder are refused', s);
     perform pg_temp.kt_as(u_b);
-    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, u_a || '/kt-b.jpg'));
-    log := log || pg_temp.kt_res(s like 'error 42501%', 'storage: B cannot upload into A''s folder', s);
+    s := pg_temp.kt_val(format($q$select count(*) from storage.objects where bucket_id = 'recipe-images' and name = %L$q$, h_a || '/kt-a.jpg'));
+    log := log || pg_temp.kt_res(s = '1', 'storage: B sees A''s file', s);
+    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, h_a || '/kt-b.jpg'));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'storage: B uploads into the household folder', s);
+    perform pg_temp.kt_as(u_c);
+    s := pg_temp.kt_val(format($q$select count(*) from storage.objects where bucket_id = 'recipe-images' and name like %L$q$, h_a || '/%'));
+    log := log || pg_temp.kt_res(s = '0', 'storage: C cannot list A''s household folder', s);
+    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, h_a || '/kt-c.jpg'));
+    log := log || pg_temp.kt_res(s like 'error 42501%', 'storage: C cannot upload into A''s household folder', s);
+    s := pg_temp.kt_exec(format($q$update storage.objects set metadata = '{}'::jsonb where bucket_id = 'recipe-images' and name = %L$q$, h_a || '/kt-a.jpg'));
+    log := log || pg_temp.kt_res(s = 'ok 0', 'storage: C cannot change A''s file', s);
+    s := pg_temp.kt_exec(format($q$delete from storage.objects where bucket_id = 'recipe-images' and name = %L$q$, h_a || '/kt-a.jpg'));
+    log := log || pg_temp.kt_res(s = 'ok 0', 'storage: C cannot delete A''s file', s);
     perform pg_temp.kt_as(null, 'anon');
-    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, 'anon/kt.jpg'));
+    s := pg_temp.kt_exec(format($q$insert into storage.objects (bucket_id, name) values ('recipe-images', %L)$q$, h_a || '/kt-anon.jpg'));
     log := log || pg_temp.kt_res(s like 'error 42501%', 'storage: anon cannot upload', s);
+    s := pg_temp.kt_exec(format($q$delete from storage.objects where bucket_id = 'recipe-images' and name = %L$q$, h_a || '/kt-a.jpg'));
+    log := log || pg_temp.kt_res(s like 'error 42501%' or s = 'ok 0', 'storage: anon cannot delete', s);
+    perform pg_temp.kt_as(u_b);
+    s := pg_temp.kt_exec(format($q$delete from storage.objects where bucket_id = 'recipe-images' and name = %L$q$, h_a || '/kt-a.jpg'));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'storage: B deletes A''s file', s);
 
     -- -----------------------------------------------------------------------
     step := 'done';
