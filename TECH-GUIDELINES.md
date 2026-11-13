@@ -71,7 +71,8 @@ Practical consequences:
 ```
 kitchen/
 ├── index.html              # page skeleton, meta, manifest, <script type="module" src="app.js">
-├── app.js                  # app logic (ES module)
+├── app.js                  # entry point: boot, auth, realtime (ES module)
+├── js/                     # ES modules: store, backend, demo, shell, gates, settings, ui, i18n, views/
 ├── styles.css              # color tokens + styles
 ├── i18n/
 │   ├── pl.js               # Polish UI strings
@@ -297,7 +298,7 @@ Copy `.github/workflows/pages.yml` from 3d-print and change the list of copied f
   run: |
     mkdir _site
     cp index.html app.js styles.css sw.js manifest.webmanifest _site/
-    cp -r icons i18n _site/
+    cp -r icons i18n js _site/
     if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
       echo "::error::Add SUPABASE_URL and SUPABASE_KEY in Settings > Secrets and variables > Actions."
       exit 1
@@ -329,7 +330,7 @@ Worth considering: reading recipes in the kitchen with no signal. For v1 an offl
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16181B" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kuchnia">

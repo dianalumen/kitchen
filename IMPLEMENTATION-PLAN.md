@@ -10,7 +10,7 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | Design: wireframes of every v1 screen + hi-fi proposals A–D | ✅ done, **direction A "Leaflet" chosen** (2026-11-12) with the Matcha accent and the UX copy rules |
 | M0 Setup | ✅ done (repo, Pages deploy, Supabase project, secrets) |
 | M1 Database | ✅ done (schema applied in Supabase, 192/192 checks in `tests.sql` pass, merged 2026-11-13) |
-| M2 App shell | 🔄 in progress |
+| M2 App shell | 🔄 built on branch `m2-app-shell` (shell, auth, household, settings, demo, PWA); waiting for review and the [D] phone test |
 | M3–M7 (v1), M8–M9 (v2) | pending |
 
 ### How milestones run

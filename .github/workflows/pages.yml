@@ -34,13 +34,13 @@ jobs:
           fi
           mkdir _site
           # Explicit allow-list: only these paths are published (never supabase/, docs, tools/).
-          # Entries that do not exist yet are skipped with a warning; extend the list in each milestone.
-          for path in index.html app.js styles.css sw.js manifest.webmanifest icons i18n; do
-            if [ -e "$path" ]; then
-              cp -r "$path" _site/
-            else
-              echo "::warning::$path not found, skipping (not created yet)"
+          # Every shipped file or folder must be listed here and in SHELL in sw.js.
+          for path in index.html app.js styles.css sw.js manifest.webmanifest icons i18n js; do
+            if [ ! -e "$path" ]; then
+              echo "::error::$path is missing."
+              exit 1
             fi
+            cp -r "$path" _site/
           done
           printf 'window.APP_CONFIG = { url: "%s", key: "%s" };\n' "$SUPABASE_URL" "$SUPABASE_KEY" > _site/config.js
 
