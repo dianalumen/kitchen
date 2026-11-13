@@ -163,16 +163,20 @@ household_id uuid not null references public.households(id) on delete cascade
 ```
 Thanks to `default current_household()`, the frontend never has to send `household_id` on insert.
 
-**v1**
-- `categories` — name, position (store-aisle order), color. Per household, user-editable; names are user data, so they may be Polish.
-- `category_rules` — keyword → category_id. Used to auto-categorize new shopping and pantry items. Seeded from the old app.
-- `units` — code (`g`, `szt`, `łyżka`…), position. Codes are data; display labels go through translations.
-- `shopping_items` — name, amount, unit, category_id, checked, checked_at, note, `recipe_id` (optional — where it came from), `created_by`, `created_at`.
-- `pantry_items` — name, amount, unit, category_id, `best_before date`, `best_before_precision` (`'day' | 'month'`), `low boolean`, note, `created_at`, `updated_at`.
-- `recipes` — title, `meal_type` (`'breakfast' | 'lunch' | 'dinner' | 'snack'`), description, servings, prep/cook time, source (link), image, tags (`text[]`), favorite, notes, `created_by`, `created_at`, `updated_at`.
-- `recipe_ingredients` — recipe_id, position, amount (`numeric`), unit, name, note (e.g. "chopped"), section (e.g. "dough", "frosting").
-- `recipe_steps` — recipe_id, position, text, optional timer in minutes.
-- `household_settings` — shared preferences (default servings, "expiring soon" threshold in days, accent color).
+**v1** (as built in M1, `supabase/schema.sql`)
+- `household_settings` — one row per household (key `household_id`): `default_servings` (2), `expiring_soon_days` (7), `accent` — a swatch key `'matcha' | 'tomato' | 'apricot' | 'lavender' | 'mint' | 'sunflower'` (default `'matcha'`; the UI maps keys to colors and Polish names).
+- `categories` — name, `name_key`, position (store-aisle order). Per household, user-editable; names are user data, so they may be Polish; `name_key` is unique per household. **No color** (IMPLEMENTATION-PLAN decision 7). `create_household` seeds 17 Polish defaults in aisle order.
+- `category_rules` — keyword, `keyword_key`, category_id. A rule matches when `keyword_key` is a substring of an item's `name_key`; the longest match wins. Seeded from the old app.
+- `units` — code (`g`, `szt`, `łyżka`…), position; seeded with the 12 codes in PRODUCT.md §4. Codes are data; display labels go through translations. Items store `unit` as text (no foreign key).
+- `shopping_items` — name, `name_key`, amount, unit, category_id, checked, `checked_at` (set/cleared by a trigger when `checked` changes), note, `recipe_id` (optional — where it came from), `created_by`, `created_at`, `updated_at`.
+- `pantry_items` — name, `name_key`, amount (`0` = run out, `null` = unknown), unit, category_id, `best_before date`, `best_before_precision` (`'day' | 'month'`, not null, default `'day'`), `low boolean`, note, `created_by`, `created_at`, `updated_at`.
+- `recipes` — title, `meal_type` (`'breakfast' | 'lunch' | 'dinner' | 'snack'`, nullable), description, servings, `prep_minutes`, `cook_minutes`, `source_url` (http/https only), `image_path` (object path in the `recipe-images` bucket), tags (`text[]`), favorite, notes, `created_by`, `created_at`, `updated_at`.
+- `recipe_ingredients` — recipe_id, position, amount (`numeric`), unit, name, `name_key`, note (e.g. "chopped"), section (e.g. "dough", "frosting").
+- `recipe_steps` — recipe_id, position, `text`, optional `timer_minutes`.
+
+Every data table also has `updated_at` (trigger on update) so the client can skip the realtime echo of its own writes, and `id uuid` (no sequences to grant).
+
+**References stay inside the household.** `category_id` and `recipe_id` are composite foreign keys `(household_id, x) → parent (household_id, id)` (`on delete set null (x)` / `cascade`), so a row can never point at another household's category or recipe — foreign-key checks bypass RLS, so the policy alone would not stop that. `on delete set null (column)` needs Postgres 15+.
 
 **v2**
 - `meal_plan` — date, `meal_type`, recipe_id, servings.
@@ -186,9 +190,9 @@ Thanks to `default current_household()`, the frontend never has to send `househo
 
 Ingredients and steps are separate tables (not `jsonb`) — easier to scale servings, build a shopping list and search by ingredient. (3d-print stores filament usage in `jsonb`; that would not work well for recipes.)
 
-**Multi-step actions as RPCs** (atomic, one round trip):
-- `move_checked_to_pantry()` — ticked shopping items → pantry (merging with an existing item of the same `name_key` by adding amounts when units match), then delete them from the list.
-- `add_recipe_to_list(recipe_id, servings)` — scales amounts, skips what the pantry already has, merges with items already on the list.
+**Multi-step actions as RPCs** (atomic, one round trip; parameters are named `p_…`, e.g. `sb.rpc("add_recipe_to_list", { p_recipe_id, p_servings })`):
+- `move_checked_to_pantry()` → number moved — ticked shopping items → pantry, then deleted from the list. Each merges into a pantry item with the same `name_key` (same unit preferred): amounts are added when units match; an unknown or `0` pantry amount takes the bought amount and unit; otherwise the pantry amount is kept. The pantry item stops being `low`. No match → new pantry item. So buying never creates a duplicate.
+- `add_recipe_to_list(p_recipe_id, p_servings default recipe servings)` → `{added, merged, skipped}` — scales amounts (rounded to 0.01); **skips** an ingredient when the pantry has an item with the same `name_key` that is not `low` and whose amount is unknown or above 0 (presence only; amounts are not compared — the client's "have / missing" must use the same rule); **merges** into an unticked list item with the same `name_key` (amounts added only when both are known and units match); otherwise **adds** it with `recipe_id` and a category from a same-name pantry item or the longest matching rule.
 - v2: `add_plan_to_list(from date, to date)` — same as above for every planned meal in the range, summed per ingredient.
 
 Validation in the database via `check` constraints (as in ogonki: `char_length(title) between 1 and 120`, `servings between 1 and 100`, etc.).
@@ -239,7 +243,7 @@ Multi-table operations are RPCs (atomic), e.g. "add a recipe's ingredients to th
 
 ```sql
 do $$ declare t text; begin
-  foreach t in array array['shopping_items','pantry_items','recipes','recipe_ingredients','recipe_steps','categories','household_settings'] loop
+  foreach t in array array['households','household_members','household_settings','categories','category_rules','units','recipes','shopping_items','pantry_items','recipe_ingredients','recipe_steps'] loop
     if not exists (select 1 from pg_publication_tables
                    where pubname='supabase_realtime' and schemaname='public' and tablename=t) then
       execute format('alter publication supabase_realtime add table public.%I', t);
@@ -253,7 +257,7 @@ The shopping list is the main realtime use case — one person ticks items off i
 
 ### 5.7. Storage (dish photos)
 
-Pattern from 3d-print: bucket `recipe-images`, path `<user_id>/<timestamp>-<random>.<ext>`, policies allowing upload and delete only in your own folder. Public bucket (the image URL is enough to display it), since food photos aren't sensitive; if that changes, use a private bucket + `createSignedUrl`.
+Bucket `recipe-images`, path `<household_id>/<timestamp>-<random>.<ext>`. Like every table, files belong to the household: policies on `storage.objects` let any member read, upload, replace and delete in their household's folder (`(storage.foldername(name))[1] = current_household()::text`), and nobody else can write. This differs from 3d-print's per-user folders on purpose: with those, one of us could not replace or delete a photo the other added, which is the access problem this app exists to fix. Public bucket (the image URL is enough to display it), since food photos aren't sensitive; if that changes, use a private bucket + `createSignedUrl`.
 
 **Resize photos in the browser before upload** (canvas → JPEG/WebP, max ~1600 px) so 5 MB phone photos don't eat the free-tier quota.
 

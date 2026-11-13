@@ -8,9 +8,10 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 |---|---|
 | Docs: product, tech guidelines, plan | ✅ done |
 | Design: wireframes of every v1 screen + hi-fi proposals A–D | ✅ done, **direction A "Leaflet" chosen** (2026-11-12) with the Matcha accent and the UX copy rules |
-| M0 Setup | ✅ [C] part done (repo scaffolding, workflow, README, first commit). Remaining [D]: create GitHub repo `dianalumen/kitchen` and push; new Supabase project; secrets `SUPABASE_URL` / `SUPABASE_KEY`; Pages source = GitHub Actions; Supabase Auth URL Configuration |
-| M1 Database | ⏭ next (after the M0 [D] steps) |
-| M1–M7 (v1), M8–M9 (v2) | pending |
+| M0 Setup | ✅ done (repo, Pages deploy, Supabase project, secrets) |
+| M1 Database | 🔄 [C] done on branch `m1-database` (`supabase/schema.sql`, `supabase/tests.sql`). Remaining [D]: open the PR, run `schema.sql` then `tests.sql` in the SQL Editor (all PASS), merge |
+| M2 App shell | ⏭ next (after M1 is merged) |
+| M3–M7 (v1), M8–M9 (v2) | pending |
 
 ### How milestones run
 
