@@ -11,7 +11,7 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | M0 Setup | ✅ done (repo, Pages deploy, Supabase project, secrets) |
 | M1 Database | ✅ done (schema applied in Supabase, 192/192 checks in `tests.sql` pass, merged 2026-11-13) |
 | M2 App shell | ✅ done (shell, auth, household, settings, demo, PWA; merged 2026-11-14; [D] accounts, joining and phone install done 2026-11-14) |
-| M3 Shopping list | 🔨 built on branch `m3-shopping-list` (2026-11-14), checked in `?demo`; waiting for the [D] shopping trip with both phones |
+| M3 Shopping list | ✅ done (merged 2026-11-14; [D] shopping trip with both phones done 2026-11-14) |
 | M4–M7 (v1), M8–M9 (v2) | pending |
 
 ### How milestones run
