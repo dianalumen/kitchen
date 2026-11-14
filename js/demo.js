@@ -190,34 +190,55 @@ export function demoBackend() {
     return r;
   };
   const find = (coll, id) => data[coll].find((r) => r.id === id);
+  // Like the real backend, writes fail with a network error while the browser is offline, so the
+  // offline queue can be tried in ?demo.
+  const net = () => { if (!navigator.onLine) throw new TypeError("Failed to fetch"); };
+  // Realtime callback from subscribe(); used for rows the "server" changes on its own (RPC results,
+  // foreign-key cascades), the way Supabase sends them to every phone.
+  let emit = () => {};
+  const insertOne = (coll, row) => {
+    const r = keyed({ ...row, id: row.id || newId(), createdAt: row.createdAt || stampNow() });
+    if (coll === "shopping") r.checkedAt = r.checked ? (row.checkedAt || stampNow()) : null;
+    data[coll].push(r);
+    return r;
+  };
+  const updateOne = (coll, id, patch) => {
+    const r = find(coll, id);
+    if (!r) throw new Error("NOT_FOUND");
+    if (coll === "shopping" && "checked" in patch && patch.checked !== r.checked) r.checkedAt = patch.checked ? stampNow() : null;
+    Object.assign(r, keyed({ ...r, ...patch }));
+    return r;
+  };
+  const removeOne = (coll, id) => {
+    data[coll] = data[coll].filter((r) => r.id !== id);
+    if (coll === "recipes") {
+      data.ingredients = data.ingredients.filter((r) => r.recipeId !== id);
+      data.steps = data.steps.filter((r) => r.recipeId !== id);
+    }
+    if (coll === "categories") {
+      // on delete cascade (rules) and on delete set null (items), as in schema.sql
+      for (const rule of data.categoryRules.filter((x) => x.categoryId === id)) {
+        data.categoryRules = data.categoryRules.filter((x) => x !== rule);
+        emit("categoryRules", "DELETE", null, { id: rule.id });
+      }
+      for (const c of ["shopping", "pantry"]) {
+        for (const it of data[c].filter((x) => x.categoryId === id)) {
+          Object.assign(it, { categoryId: null, updatedAt: stampNow() });
+          emit(c, "UPDATE", clone(it), null);
+        }
+      }
+    }
+  };
 
   return {
     kind: "demo",
     async load() { await wait(); return clone(data); },
-    async insert(coll, row) {
-      await wait(80);
-      const r = keyed({ ...row, id: row.id || newId(), createdAt: row.createdAt || stampNow() });
-      if (coll === "shopping") r.checkedAt = r.checked ? stampNow() : null;
-      data[coll].push(r);
-      return clone(r);
-    },
-    async update(coll, id, patch) {
-      await wait(80);
-      const r = find(coll, id);
-      if (!r) throw new Error("NOT_FOUND");
-      if (coll === "shopping" && "checked" in patch && patch.checked !== r.checked) r.checkedAt = patch.checked ? stampNow() : null;
-      Object.assign(r, keyed({ ...r, ...patch }));
-      return clone(r);
-    },
-    async remove(coll, id) {
-      await wait(80);
-      data[coll] = data[coll].filter((r) => r.id !== id);
-      if (coll === "recipes") {
-        data.ingredients = data.ingredients.filter((r) => r.recipeId !== id);
-        data.steps = data.steps.filter((r) => r.recipeId !== id);
-      }
-      return true;
-    },
+    async insert(coll, row) { await wait(80); net(); return clone(insertOne(coll, row)); },
+    async update(coll, id, patch) { await wait(80); net(); return clone(updateOne(coll, id, patch)); },
+    async remove(coll, id) { await wait(80); net(); removeOne(coll, id); return true; },
+    async insertMany(coll, rows) { await wait(80); net(); return rows.map((r) => clone(insertOne(coll, r))); },
+    async updateMany(coll, ids, patch) { await wait(80); net(); return ids.filter((id) => find(coll, id)).map((id) => clone(updateOne(coll, id, patch))); },
+    async removeMany(coll, ids) { await wait(80); net(); ids.forEach((id) => removeOne(coll, id)); return true; },
     async saveSettings(patch) { await wait(80); Object.assign(data.settings, patch, { updatedAt: stampNow() }); return clone(data.settings); },
     async createHousehold() { return clone(data.household); },
     async joinHousehold() { return clone(data.household); },
@@ -237,24 +258,31 @@ export function demoBackend() {
     async moveCheckedToPantry() {
       // Simplified version of the RPC: merge by name, add amounts when units match.
       await wait();
+      net();
       const bought = data.shopping.filter((s) => s.checked);
       for (const s of bought) {
         const key = s.name.trim().toLowerCase();
         const hit = data.pantry.find((x) => x.nameKey === key && x.unit === s.unit) || data.pantry.find((x) => x.nameKey === key);
         if (hit) {
-          if (hit.amount == null || hit.amount === 0) { hit.amount = s.amount; hit.unit = s.unit; }
-          else if (hit.unit === s.unit && s.amount != null) hit.amount += s.amount;
-          Object.assign(hit, { low: false, updatedAt: stampNow() });
+          // Same merge rules as move_checked_to_pantry in schema.sql
+          if (s.amount == null) { if (hit.amount === 0) hit.amount = null; }
+          else if (hit.amount == null || hit.amount === 0) { hit.amount = s.amount; hit.unit = s.unit; }
+          else if (hit.unit === s.unit) hit.amount += s.amount;
+          Object.assign(hit, { low: false, categoryId: hit.categoryId || s.categoryId, updatedAt: stampNow() });
+          emit("pantry", "UPDATE", clone(hit), null);
         } else {
-          data.pantry.push(keyed({ id: newId(), name: s.name, amount: s.amount, unit: s.unit, categoryId: s.categoryId,
-            bestBefore: null, bestBeforePrecision: "day", low: false, note: null, createdAt: stampNow() }));
+          const row = keyed({ id: newId(), name: s.name.trim(), amount: s.amount, unit: s.unit, categoryId: s.categoryId,
+            bestBefore: null, bestBeforePrecision: "day", low: false, note: null, createdBy: "demo-you", createdAt: stampNow() });
+          data.pantry.push(row);
+          emit("pantry", "INSERT", clone(row), null);
         }
       }
       data.shopping = data.shopping.filter((s) => !s.checked);
+      bought.forEach((s) => emit("shopping", "DELETE", null, { id: s.id }));
       return bought.length;
     },
     async addRecipeToList() { await wait(); return { added: 0, merged: 0, skipped: 0 }; },
-    subscribe(householdId, onRow, onStatus) { setTimeout(() => onStatus(true), 0); },
+    subscribe(householdId, onRow, onStatus) { emit = onRow; setTimeout(() => onStatus(true), 0); },
     unsubscribe() {},
     async signOut() {}
   };

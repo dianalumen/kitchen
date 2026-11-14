@@ -30,10 +30,18 @@ export function fmtNum(n) {
   return Number(n).toLocaleString(locale, { maximumFractionDigits: 2 });
 }
 
-// "2 l", "400 g", "1 pęczek"; empty when nothing is known.
+// "2 l", "400 g", "1 pęczek", "2 łyżki", "1,5 łyżki"; empty when nothing is known.
 export function fmtAmount(amount, unit) {
   if (amount == null || amount === "") return unit || "";
-  return unit ? fmtNum(amount) + " " + unit : fmtNum(amount);
+  return unit ? fmtNum(amount) + " " + unitLabel(unit, amount) : fmtNum(amount);
+}
+
+// Unit code → the word that fits the number (codes like "g" or "l" stay as they are).
+export function unitLabel(unit, amount) {
+  const forms = dict.unit_forms && dict.unit_forms[unit];
+  if (!forms) return unit;
+  if (amount == null) return forms[0];
+  return Number.isInteger(Number(amount)) ? forms[pluralIndex(amount)] : forms[3];
 }
 
 // Date → "20 lis".

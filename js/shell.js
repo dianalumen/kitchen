@@ -103,7 +103,8 @@ export function header({ eyebrow = "", title, buttons = [] }) {
     (buttons.length ? '<div class="acts">' + buttons.map((b) =>
       '<button type="button" class="round" data-act="' + b.act + '" aria-label="' + esc(b.label) + '">' + icon(b.icon) + "</button>").join("") + "</div>" : "") +
     "</div>" +
-    '<div class="pill" data-offline role="status" hidden>' + icon("cloudOff") + esc(t("offline")) + "</div>";
+    '<div class="pill" data-offline role="status" hidden>' + icon("cloudOff") + esc(t("offline")) +
+    '<span data-queued hidden>' + esc(t("offline_queued")) + "</span></div>";
 }
 
 export function setEyebrow(root, text) {
@@ -125,8 +126,9 @@ export function paintStatus() {
     graceTimer = setTimeout(paintStatus, 3100);
   }
   if (!channelDown) downSince = 0;
-  const offline = !state.online || (channelDown && Date.now() - downSince > 3000);
+  const offline = !state.online || state.queued > 0 || (channelDown && Date.now() - downSince > 3000);
   document.querySelectorAll("[data-offline]").forEach((el) => { el.hidden = !offline; });
+  document.querySelectorAll("[data-queued]").forEach((el) => { el.hidden = !state.queued; });
 }
 
 // ---------------------------------------------------------------------------

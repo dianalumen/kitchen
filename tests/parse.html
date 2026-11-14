@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parser tests</title>
+<style>
+  body{font:15px/1.4 system-ui,sans-serif;margin:16px;background:#fff;color:#141414}
+  @media (prefers-color-scheme: dark){body{background:#121211;color:#F2F0EA}}
+  h1{font-size:20px} .ok{color:#2e7d32} .bad{color:#C8323A;font-weight:600} code{font-size:13px}
+  li{margin:2px 0}
+</style>
+</head>
+<body>
+<!-- Not deployed (not in the Pages allow-list). Open http://localhost:8000/tests/parse.html -->
+<h1 id="sum">Running…</h1>
+<ul id="out"></ul>
+<script type="module">
+import { parseItem, matchRule, matchScore, suggest, toNumber } from "../js/parse.js";
+
+const UNITS = ["szt", "g", "dag", "kg", "ml", "l", "opak", "łyżka", "łyżeczka", "szklanka", "pęczek", "plaster"];
+const results = [];
+const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function check(label, got, want) { results.push({ label, ok: eq(got, want), got, want }); }
+const P = (s, codes = UNITS) => parseItem(s, codes);
+const R = (name, amount = null, unit = null) => ({ name, amount, unit });
+
+// parseItem
+check("name amount unit", P("mleko 2 l"), R("mleko", 2, "l"));
+check("count without unit", P("jajka 10"), R("jajka", 10));
+check("comma decimal", P("mąka 0,5 kg"), R("mąka", 0.5, "kg"));
+check("dot decimal", P("mąka 0.5 kg"), R("mąka", 0.5, "kg"));
+check("glued unit", P("sok 1,5l"), R("sok", 1.5, "l"));
+check("unit case", P("Mleko 2 L"), R("Mleko", 2, "l"));
+check("multi-word name", P("Mleko bez laktozy 3,2% 2 l"), R("Mleko bez laktozy 3,2%", 2, "l"));
+check("percent stays in name", P("Mleko 3,2%"), R("Mleko 3,2%"));
+check("plural alias", P("oliwa 2 łyżki"), R("oliwa", 2, "łyżka"));
+check("alias szt.", P("cytryny 3 szt."), R("cytryny", 3, "szt"));
+check("alias needs household unit", P("cytryny 3 szt.", ["kg"]), R("cytryny 3 szt."));
+check("leading amount and unit", P("2 l mleka"), R("mleka", 2, "l"));
+check("leading count", P("2 awokado"), R("awokado", 2));
+check("leading glued", P("500g twarogu"), R("twarogu", 500, "g"));
+check("fraction", P("masło 1/2 opak"), R("masło", 0.5, "opak"));
+check("unknown unit word stays in name", P("chleb 1 bochenek"), R("chleb 1 bochenek"));
+check("only amount and unit", P("2 l"), R("2 l"));
+check("only number", P("10"), R("10"));
+check("zero is not an amount", P("cola 0"), R("cola 0"));
+check("extra spaces", P("  ser   200  g "), R("ser", 200, "g"));
+check("single word", P("chleb"), R("chleb"));
+check("empty", P(""), R(""));
+check("number in the middle", P("kawa 3w1"), R("kawa 3w1"));
+check("dymka pęczek", P("cebula dymka 1 pęczek"), R("cebula dymka", 1, "pęczek"));
+check("toNumber ½", toNumber("½"), 0.5);
+
+// matchRule
+const rules = [
+  { keywordKey: "mleko", categoryId: "dairy" },
+  { keywordKey: "mleko kokosowe", categoryId: "cans" },
+  { keywordKey: "ser", categoryId: "dairy" }
+];
+check("rule substring", matchRule("Mleko bez laktozy", rules), "dairy");
+check("longest rule wins", matchRule("Mleko kokosowe light", rules), "cans");
+check("no rule", matchRule("Chleb", rules), null);
+check("rule is case-insensitive", matchRule("  SEREK ", rules), "dairy");
+
+// matchScore and suggest
+check("score same", matchScore("Mleko", "mleko"), 3);
+check("score prefix", matchScore("Mleko owsiane", "mle"), 2);
+check("score later word", matchScore("Mleko bez laktozy", "bez"), 1);
+check("score none", matchScore("Chleb", "mle"), 0);
+const s = suggest("mle", [
+  [{ name: "Mleko bez laktozy 3,2%", src: "list" }],
+  [{ name: "Mleko kokosowe", src: "pantry" }, { name: "mleko bez laktozy 3,2%", src: "pantry" }],
+  [{ name: "Mleko", src: "recent" }, { name: "Chleb", src: "recent" }]
+]);
+check("suggest dedupes by name, keeps first source", s.map((x) => x.src), ["list", "pantry", "recent"]);
+check("suggest limit", suggest("m", [[{ name: "m1" }, { name: "m2" }, { name: "m3" }, { name: "m4" }, { name: "m5" }]]).length, 4);
+check("suggest empty query", suggest(" ", [[{ name: "x" }]]), []);
+
+const bad = results.filter((r) => !r.ok);
+document.getElementById("sum").textContent = (results.length - bad.length) + "/" + results.length + " pass";
+document.getElementById("sum").className = bad.length ? "bad" : "ok";
+document.getElementById("out").innerHTML = results.map((r) =>
+  '<li class="' + (r.ok ? "ok" : "bad") + '">' + (r.ok ? "PASS " : "FAIL ") + r.label +
+  (r.ok ? "" : " <code>got " + JSON.stringify(r.got) + " want " + JSON.stringify(r.want) + "</code>") + "</li>").join("");
+</script>
+</body>
+</html>

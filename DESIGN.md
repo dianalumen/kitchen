@@ -147,3 +147,12 @@ Recorded per the working rules; each can be changed back if it reads wrong on th
 - **Demo banner** uses Leaflet's ink pill (dark bar, accent button) rather than 3d-print's soft bar.
 - **"Zużyj wkrótce" tile** carries the small `--warn-dot`, as in the accent board; the plain A pantry board had none.
 - **Month-precision dates** count as "Zużyj wkrótce" during their month ("lis 2026 / do końca mies."), day dates within the household threshold (7 days).
+
+### Deliberate differences in the build (M3)
+- **Editing a row:** the A board makes the whole card the tick target and the wireframe opens the sheet on the name. To keep the big tick target in the store, a tap anywhere on the card ticks; the 44 px icon circle on the left opens the edit sheet, and holding the row (about half a second) does too.
+- **Amounts stay on the second line** with the note ("2 l, łaciate"), as on the A board, not right-aligned.
+- **Kupione expands** to the bought rows (outlined, name struck through, ink check); tapping one puts it back on the list.
+- **"ostatnio"** comes from the last 80 adds on this phone (the list keeps no history after *Wyczyść* or *Do spiżarni*); the list and pantry sources are shared.
+- **Picking a category in the edit sheet saves a category rule** for that name, so both phones file it the same way next time.
+- **Offline pill** reads "Bez połączenia" plus "zapisze się później" while writes are waiting.
+- **Category order** is changed with a drag handle (or arrow keys on it), not up/down buttons.

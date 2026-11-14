@@ -22,6 +22,7 @@ export const state = {
   ingredients: [],
   steps: [],
   online: navigator.onLine, // browser network state
+  queued: 0,                // writes waiting for the network
   live: false,              // realtime channel subscribed
   loaded: false
 };
@@ -69,13 +70,13 @@ export function setData(d) {
 // ---------------------------------------------------------------------------
 export const byId = (coll, id) => state[coll].find((r) => r.id === id);
 
-function putLocal(coll, row) {
+export function putLocal(coll, row) {
   const arr = state[coll];
   const i = arr.findIndex((r) => r.id === row.id);
   if (i < 0) arr.push(row); else arr[i] = row;
 }
 
-function dropLocal(coll, id) {
+export function dropLocal(coll, id) {
   const i = state[coll].findIndex((r) => r.id === id);
   if (i >= 0) state[coll].splice(i, 1);
 }
@@ -96,27 +97,94 @@ export function stamp(s) {
 // tick-untick never flickers back to an older state.
 const pending = new Map();
 const busy = (id, d) => { const n = (pending.get(id) || 0) + d; if (n > 0) pending.set(id, n); else pending.delete(id); };
+const busyAll = (ids, d) => ids.forEach((id) => busy(id, d));
+
+// ---------------------------------------------------------------------------
+// Offline queue: a write that fails because the network is gone keeps its local change and waits
+// here (in memory, in order) until the connection is back. Any other error rolls back.
+// ---------------------------------------------------------------------------
+const queue = [];
+let retryTimer = 0;
+
+export function isNetworkError(err) {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  const msg = String((err && (err.message || err.details)) || err || "");
+  return /failed to fetch|networkerror|load failed|network request failed|network connection was lost|fetch failed/i.test(msg);
+}
+
+function enqueue(job) {
+  queue.push(job);
+  state.queued = queue.length;
+  changed("status");
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => flushQueue().then((empty) => { if (empty) reload(); }), 15000);
+}
+
+// Sends queued writes in order. Resolves true when the queue is empty afterwards.
+let flushing = null;
+export function flushQueue() {
+  if (!queue.length) return Promise.resolve(true);
+  if (flushing) return flushing;
+  flushing = (async () => {
+    while (queue.length) {
+      const job = queue[0];
+      try {
+        const saved = await job.save();
+        queue.shift();
+        busyAll(job.ids, -1);
+        if (saved && job.onSaved) job.onSaved(saved);
+      } catch (err) {
+        if (isNetworkError(err)) break; // still offline: try again later
+        queue.shift();
+        busyAll(job.ids, -1);
+        console.warn("Queued write failed", err);
+        toast(errorText(err, "toast_not_saved"));
+      }
+    }
+    state.queued = queue.length;
+    changed("status", "all");
+    clearTimeout(retryTimer);
+    if (queue.length) retryTimer = setTimeout(() => flushQueue().then((empty) => { if (empty) reload(); }), 15000);
+    flushing = null;
+    return !queue.length;
+  })();
+  return flushing;
+}
 
 // ---------------------------------------------------------------------------
 // Optimistic writes
 // ---------------------------------------------------------------------------
-async function persist(id, save, onSaved, rollback, what) {
-  busy(id, 1);
+// The general form: `apply` changes local state, `save` writes to the backend, `rollback` undoes
+// `apply`. `ids` are the rows whose realtime events wait until the write is done.
+// Returns the saved value, true when queued offline, or null when it failed.
+export async function optimistic({ ids = [], apply, save, onSaved, rollback, what }) {
+  if (apply) apply();
+  changed(what);
+  busyAll(ids, 1);
   try {
-    const saved = await save();
-    busy(id, -1);
-    if (saved) onSaved(saved);
+    const saved = queue.length ? Promise.reject(new TypeError("Failed to fetch")) : save();
+    const res = await saved;
+    busyAll(ids, -1);
+    if (res && onSaved) onSaved(res);
     changed(what);
-    return saved || true;
+    return res || true;
   } catch (err) {
-    busy(id, -1);
+    if (isNetworkError(err)) {
+      enqueue({ ids, save, onSaved, what });
+      return true;
+    }
+    busyAll(ids, -1);
     console.warn("Write failed", err);
-    rollback();
+    if (rollback) rollback();
     changed(what);
     toast(errorText(err, "toast_not_saved"));
     reload();
     return null;
   }
+}
+
+function persist(id, save, onSaved, rollback, what) {
+  return optimistic({ ids: [id], save, onSaved, rollback, what });
 }
 
 // Insert a row; returns the saved row (or null on failure).
@@ -143,8 +211,50 @@ export async function deleteRow(coll, id, { undoLabel } = {}) {
   dropLocal(coll, id);
   changed(coll);
   const ok = await persist(id, () => backend.remove(coll, id), () => {}, () => putLocal(coll, before), coll);
-  if (ok && undoLabel) undoToast(undoLabel, () => insertRow(coll, before));
+  if (ok && undoLabel) undoToast(undoLabel, () => insertRows(coll, [before]));
   return ok;
+}
+
+// Insert several rows in one request (undo of a bulk delete keeps the original ids).
+export function insertRows(coll, rows) {
+  rows = rows.map((r) => ({ id: newId(), createdAt: new Date().toISOString(), ...r }));
+  const ids = rows.map((r) => r.id);
+  return optimistic({
+    ids, what: coll,
+    apply: () => rows.forEach((r) => putLocal(coll, r)),
+    save: () => backend.insertMany(coll, rows),
+    onSaved: (saved) => Array.isArray(saved) && saved.forEach((r) => putLocal(coll, r)),
+    rollback: () => ids.forEach((id) => dropLocal(coll, id))
+  });
+}
+
+// Delete several rows in one request; `undoLabel` offers to put them all back.
+export async function deleteRows(coll, ids, { undoLabel } = {}) {
+  const before = ids.map((id) => byId(coll, id)).filter(Boolean);
+  if (!before.length) return null;
+  ids = before.map((r) => r.id);
+  const ok = await optimistic({
+    ids, what: coll,
+    apply: () => ids.forEach((id) => dropLocal(coll, id)),
+    save: () => backend.removeMany(coll, ids),
+    rollback: () => before.forEach((r) => putLocal(coll, r))
+  });
+  if (ok && undoLabel) undoToast(undoLabel, () => insertRows(coll, before));
+  return ok;
+}
+
+// Set the same fields on several rows in one request.
+export function updateRows(coll, ids, patch) {
+  const before = ids.map((id) => byId(coll, id)).filter(Boolean);
+  if (!before.length) return Promise.resolve(true);
+  ids = before.map((r) => r.id);
+  return optimistic({
+    ids, what: coll,
+    apply: () => before.forEach((r) => putLocal(coll, { ...r, ...patch })),
+    save: () => backend.updateMany(coll, ids, patch),
+    onSaved: (saved) => Array.isArray(saved) && saved.forEach((r) => putLocal(coll, r)),
+    rollback: () => before.forEach((r) => putLocal(coll, r))
+  });
 }
 
 // Shared household settings (accent, thresholds).

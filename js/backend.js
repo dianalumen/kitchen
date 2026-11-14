@@ -5,6 +5,7 @@
 //   load(user)                     → { noHousehold: true } | { household, members, settings, categories,
 //                                     categoryRules, units, shopping, pantry, recipes, ingredients, steps }
 //   insert(coll, row) / update(coll, id, patch) / remove(coll, id)   → saved row (camelCase)
+//   insertMany(coll, rows) / updateMany(coll, ids, patch) → saved rows; removeMany(coll, ids)
 //   saveSettings(patch)            → saved settings row
 //   createHousehold(name) / joinHousehold(code) / renameHousehold(name) → household
 //   newCode()                      → new invite code
@@ -111,6 +112,9 @@ export function sbBackend(sb) {
     async insert(coll, row) { return fromRow(await must(sb.from(TABLES[coll]).insert(toRow(row)).select().single())); },
     async update(coll, id, patch) { return fromRow(await must(sb.from(TABLES[coll]).update(toRow(patch)).eq("id", id).select().single())); },
     async remove(coll, id) { await must(sb.from(TABLES[coll]).delete().eq("id", id)); return true; },
+    async insertMany(coll, rows) { return (await must(sb.from(TABLES[coll]).insert(rows.map(toRow)).select())).map(fromRow); },
+    async updateMany(coll, ids, patch) { return (await must(sb.from(TABLES[coll]).update(toRow(patch)).in("id", ids).select())).map(fromRow); },
+    async removeMany(coll, ids) { await must(sb.from(TABLES[coll]).delete().in("id", ids)); return true; },
     async saveSettings(patch) {
       return fromRow(await must(sb.from("household_settings").update(toRow(patch)).eq("household_id", householdId).select().single()));
     },
