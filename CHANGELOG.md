@@ -1,5 +1,16 @@
 # Changelog
 
+## M4 · Pantry — 2026-11-14
+
+- **P1** `js/views/pantry.js`: search (matches `name_key`, instant), horizontally scrolling category chips (only categories that have items), "Zużyj wkrótce" and "Mało" tiles and sections first (only when non-empty), then rows by category in aisle order. Rows show name + muted second line, values right-aligned in tabular numerals ("1 kg", "20 lis / 8 dni", "lis 2026 / do końca mies.", "po terminie"). The body is reconciled by key (`sync()`), so a repaint replaces only the rows whose markup changed; 6 searches over 59 rows take ~9 ms.
+- "Zużyj wkrótce" = best-before within the household threshold or past. A month-precision date counts as the last day of that month (stored that way, so the same test serves both precisions). "Mało" = `low` or amount 0.
+- **P2** item sheet: big −/+ stepper (step by unit: 1 for szt/opak/spoons, 10 or 50 for g and ml, 0.25 kg, 0.5 l, 5 dag), unit chips, *Mało* switch, *Termin* with *Dzień / Miesiąc* (date input, or month + year selects), *Bez terminu*, category, note, *Dodaj do listy* (merges with an item on the list by name, or puts a bought one back) and *Usuń* with undo. Changes are live: one write per burst, sent after a short pause or when the sheet closes.
+- **P3** no-results state "Nie ma „…”" with *Dodaj do spiżarni* and *Dodaj do listy* (the text goes through the list's parser). The + button in the header opens the same add sheet: `kuskus 500 g`, category guessed from the same rules as the list (changeable, and a manual pick teaches the household). A name already in the pantry gets the amount added instead of a second row.
+- Settings: "Zużyj wkrótce" threshold in days (1–30).
+- Shared code: `js/pickers.js` (category/unit helpers, unit chips, category field) now used by the list's edit sheet and the pantry; `addToList()` in `js/views/list.js` is the one place that merges into the shopping list.
+- `?demo`: 57 pantry items with month-precision dates, expired, due today, low and zero amounts; moving bought items merges "Masło" into the pantry row.
+- `sw.js` cache `kitchen-v3` with `js/pickers.js`.
+
 ## M3 · Shopping list — 2026-11-14
 
 - **L2** add field pinned on top (sticky): `js/parse.js` reads `name amount unit` (`mleko 2 l`, `jajka 10`, `mąka 0,5 kg`, `2 l mleka`, `sok 1,5l`, `1/2`, comma decimals, plural spellings like `2 łyżki`), using only the household's unit codes. Autocomplete from the list ("na liście", "kupione"), the pantry ("w domu 1 l", "mało w domu") and recent adds ("ostatnio"), plus "Dodaj „…”" with the guessed category. Enter adds what was typed; a name already on the list is merged instead of duplicated (amounts added when units match), a bought one goes back on the list.

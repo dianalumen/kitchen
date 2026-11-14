@@ -243,6 +243,38 @@ button.rowbtn:active{background:var(--bg)}
 .rowbtn .code{font-size:18px;letter-spacing:.04em;font-variant-numeric:tabular-nums;white-space:nowrap}
 .group .lbl{margin:8px 10px 2px}
 
+
+/* ---------------------------------------------------------------- pantry (P1–P3) */
+.psec{display:flex;flex-direction:column;gap:10px}
+.rowbtn.flash{animation:flash .5s var(--ease-out)}
+button.tile{font:inherit;cursor:pointer;transition:transform .15s}
+button.tile:active:not(:disabled){transform:scale(.97)}
+button.tile:disabled{cursor:default}
+.empty .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.empty .acts .btn{background:var(--bg)}
+.empty .acts .btn.black{background:var(--ink)}
+.round.sm{width:36px;height:36px;background:var(--bg)}
+.round.sm svg{width:17px;height:17px}
+.subline{margin:-8px 0 0}
+.hint{margin:-4px 0 0 4px;font-size:13px;font-weight:500;min-height:1.35em}
+/* P2: big stepper, switch row, month picker */
+.step{display:flex;align-items:center;justify-content:space-between;background:var(--soft);border-radius:999px;padding:6px}
+.step .round{width:52px;height:52px;background:var(--bg2)}
+.step .v{font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.step .v small{font-size:16px;font-weight:600;color:var(--muted);margin-left:5px;letter-spacing:0}
+.tgl{display:flex;align-items:center;gap:12px;min-height:54px;border:0;border-radius:999px;background:var(--soft);padding:0 10px 0 20px;font-weight:600;text-align:left;width:100%}
+.tgl>span:first-child{flex:1}
+.sw{width:50px;height:30px;border-radius:999px;background:var(--faint);position:relative;flex:none;transition:background .2s}
+.sw i{position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .25s var(--ease-spring)}
+.tgl[aria-checked="true"] .sw{background:var(--ink)}
+.tgl[aria-checked="true"] .sw i{transform:translateX(20px)}
+.duo{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px}
+select.fld{appearance:none;-webkit-appearance:none;background-image:none;padding:0 14px 0 18px;text-overflow:ellipsis}
+input.fld[type="date"]{appearance:none;-webkit-appearance:none;min-width:0;text-align:left}
+input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
+.sheet .seg{margin:0}
+.sheet .units .chips{margin-right:-18px}
+
 /* ---------------------------------------------------------------- recipe cards (R1 grid) */
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .rcard{border:0;background:var(--soft);color:var(--ink);border-radius:24px;padding:6px 6px 12px;display:flex;flex-direction:column;gap:8px;text-align:left;transition:transform .18s var(--ease-spring)}

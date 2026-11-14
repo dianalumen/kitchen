@@ -12,6 +12,19 @@ const SWATCH = { matcha: "var(--matcha)", tomato: "#FF8A65", apricot: "#FFB86B",
 export const formatCode = (c) => String(c || "").replace(/(.{4})(?=.)/g, "$1-");
 
 let signOut = () => {};
+let soonDraft = null; // threshold shown while the new value is being saved
+let soonTimer = 0;
+const SOON_MIN = 1, SOON_MAX = 30;
+const soonNow = () => soonDraft ?? (state.settings && state.settings.expiringSoonDays) ?? 7;
+function flushSoon() {
+  clearTimeout(soonTimer);
+  soonTimer = 0;
+  if (soonDraft != null) {
+    const n = soonDraft;
+    soonDraft = null;
+    if (state.settings && state.settings.expiringSoonDays !== n) saveSettings({ expiringSoonDays: n });
+  }
+}
 export function initSettings(opts) { signOut = opts.signOut; }
 
 function memberName(m) {
@@ -42,7 +55,11 @@ function body() {
     '<div class="group"><span class="lbl">' + esc(t("set_accent")) + '</span><div class="swatches" role="group" aria-label="' + esc(t("set_accent")) + '">' +
     ACCENTS.map((k) => '<button type="button" data-accent-pick="' + k + '" style="--c:' + SWATCH[k] + '" aria-pressed="' + (accent === k) + '" aria-label="' + esc(t("accent_" + k)) + '">' + icon("check") + "</button>").join("") +
     "</div></div>" +
-    '<div class="group"><button type="button" class="rowbtn" data-set="categories"><span class="ic">' + icon("list") + '</span><span class="nm">' + esc(t("set_categories")) + '<span class="sub">' + esc(t("set_categories_sub")) + "</span></span>" + icon("right", "chev") + "</button></div>" +
+    '<div class="group"><div class="rowbtn"><span class="ic">' + icon("jar") + '</span><span class="nm">' + esc(t("set_soon")) + '<span class="sub">' + esc(t("set_soon_sub")) + "</span></span>" +
+    '<button type="button" class="round sm" data-set="soon-less" aria-label="' + esc(t("set_soon_less")) + '"' + (soonNow() <= SOON_MIN ? " disabled" : "") + ">" + icon("minus") + "</button>" +
+    '<span class="val" aria-live="polite" style="min-width:52px;text-align:center">' + esc(t("days", { n: soonNow() })) + "</span>" +
+    '<button type="button" class="round sm" data-set="soon-more" aria-label="' + esc(t("set_soon_more")) + '"' + (soonNow() >= SOON_MAX ? " disabled" : "") + ">" + icon("plus") + "</button></div>" +
+    '<button type="button" class="rowbtn" data-set="categories"><span class="ic">' + icon("list") + '</span><span class="nm">' + esc(t("set_categories")) + '<span class="sub">' + esc(t("set_categories_sub")) + "</span></span>" + icon("right", "chev") + "</button></div>" +
     '<button type="button" class="btn danger wide" data-set="signout">' + esc(t(state.demo ? "set_demo_exit" : "set_signout")) + "</button>"
   );
 }
@@ -80,6 +97,13 @@ export function openSettings() {
         const b = e.target.closest("[data-set]");
         if (!b) return;
         const act = b.dataset.set;
+        if (act === "soon-less" || act === "soon-more") {
+          soonDraft = Math.min(SOON_MAX, Math.max(SOON_MIN, soonNow() + (act === "soon-more" ? 1 : -1)));
+          repaint();
+          clearTimeout(soonTimer);
+          soonTimer = setTimeout(flushSoon, 500);
+          return;
+        }
         if (act === "share") return share();
         if (act === "rename") { close(true); return renameSheet(); }
         if (act === "new-code") { close(true); return newCodeSheet(); }
@@ -87,7 +111,7 @@ export function openSettings() {
         if (act === "signout") return signOut();
       });
     },
-    onClose() { if (off) off(); }
+    onClose() { flushSoon(); if (off) off(); }
   });
 }
 

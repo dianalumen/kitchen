@@ -116,6 +116,10 @@ export default {
   set_theme_dark: "Ciemny",
   set_accent: "Kolor akcentu",
   set_categories: "Kategorie i kolejność",
+  set_soon: "Zużyj wkrótce",
+  set_soon_sub: "Dni przed terminem",
+  set_soon_less: "Mniej dni",
+  set_soon_more: "Więcej dni",
   set_categories_sub: "Jak alejki w sklepie",
   set_signout: "Wyloguj się",
   set_demo_exit: "Wyjdź z przykładu",
@@ -192,7 +196,7 @@ export default {
     "plaster": ["plaster", "plastry", "plastrów", "plastra"]
   },
 
-  // Pantry (placeholder until M4)
+  // Pantry (P1–P3)
   pantry_title: "Spiżarnia",
   pantry_count: ["{n} produkt", "{n} produkty", "{n} produktów"],
   pantry_search: "Szukaj w spiżarni",
@@ -204,6 +208,25 @@ export default {
   today: "dziś",
   expired: "po terminie",
   month_end: "do końca mies.",
+  pantry_none: "Nie ma „{q}”",
+  pantry_zero: "0 wyników w spiżarni",
+  pantry_nothing: "Nic tu nie ma",
+  pantry_empty_title: "Spiżarnia jest pusta",
+  pantry_empty_tip: "Ilość wpisz po nazwie: kuskus 500 g",
+  pantry_add: "Dodaj do spiżarni",
+  pantry_add_tip: "Ilość wpisz po nazwie: kuskus 500 g",
+  pantry_to_list: "Dodaj do listy",
+  pantry_added: "„{name}” w spiżarni",
+  pantry_more: "Dodano do „{name}”",
+  pantry_already: "„{name}” już jest w spiżarni",
+  pantry_on_list: "„{name}” na liście",
+  pantry_less: "Mniej",
+  pantry_more_btn: "Więcej",
+  pantry_expiry: "Termin",
+  pantry_day: "Dzień",
+  pantry_month: "Miesiąc",
+  pantry_year: "Rok",
+  pantry_no_expiry: "Bez terminu",
 
   // Recipes (placeholder until M5)
   recipes_title: "Przepisy",
@@ -218,5 +241,6 @@ export default {
   meal_snack: "Przekąska",
 
   // Short month names for dates ("20 lis", "lis 2026")
+  months_long: ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"],
   months_short: ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
 };
