@@ -2,40 +2,39 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kuchnia</title>
-  <style>
-    :root { color-scheme: light dark; --bg: #FFFFFF; --fg: #1a1a18; --muted: #6b6b66; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #121211; --fg: #f2f2ef; --muted: #9a9a94; }
-    }
-    body {
-      margin: 0; min-height: 100vh; display: grid; place-content: center; text-align: center;
-      background: var(--bg); color: var(--fg);
-      font-family: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    }
-    h1 { margin: 0 0 .5rem; font-size: 2.5rem; font-weight: 600; }
-    p { margin: 0; color: var(--muted); }
-  </style>
+  <meta name="description" content="Lista zakupów, spiżarnia i przepisy. Wspólne, na dwóch telefonach.">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Kuchnia">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Per-device theme and the last known household accent before first paint (no flash).
+    try {
+      var th = localStorage.getItem("kitchen.theme"), ac = localStorage.getItem("kitchen.accent");
+      if (th === "light" || th === "dark") document.documentElement.dataset.theme = th;
+      if (ac) document.documentElement.dataset.accent = ac;
+    } catch (e) {}
+  </script>
+  <script type="module" src="app.js"></script>
 </head>
 <body>
-  <main>
-    <h1>Kuchnia</h1>
-    <p id="status">Sprawdzam konfigurację…</p>
+  <div id="gate" hidden></div>
+  <main id="app" class="app">
+    <div id="banner"></div>
+    <div id="view" class="view"><div class="boot" aria-busy="true"></div></div>
   </main>
-  <script src="config.js"></script>
-  <script>
-    (function () {
-      var el = document.getElementById("status");
-      var cfg = window.APP_CONFIG;
-      if (cfg && cfg.url) {
-        var host = "";
-        try { host = new URL(cfg.url).host; } catch (e) { host = "(nieprawidłowy adres)"; }
-        el.textContent = "Konfiguracja Supabase: jest (" + host + ")";
-      } else {
-        el.textContent = "Konfiguracja Supabase: brak (config.js)";
-      }
-    })();
-  </script>
+  <div id="tabbar" class="tabbar"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

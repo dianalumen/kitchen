@@ -137,3 +137,13 @@ Decided 2026-11-12. Short, scannable, numbers instead of sentences.
 - Tick animation: Leaflet `.card .fill` clip-path circle from the tap point, then the item moves into "Kupione" after ~600 ms (enough time to undo by tapping again).
 - Categories have no colors (the colored dots were removed from A after review, so borrowing 2 from C above is dropped); the accent is the only big fill.
 - No photos yet for most recipes: show the accent tile with a meal-type glyph as the fallback.
+
+### Deliberate differences in the build (M2)
+Recorded per the working rules; each can be changed back if it reads wrong on the phone.
+- **Gear on every tab header.** The A board shows the gear on the list and a "+" on the pantry. Settings must be reachable from every tab, so M2 puts the gear on all three; M4/M5 add their own "+" next to it.
+- **Invite code is 8 characters** (the database format), typed into one field and shown as `K7Q2-MX4P`; the wireframe's six boxes were a sketch.
+- **Members show "od 12 lis"** instead of "dołączył 12 lis" (no gendered verb).
+- **New invite code** is a small round button next to *Udostępnij*, with a confirm sheet ("Stary kod przestanie działać"), since it cannot be undone.
+- **Demo banner** uses Leaflet's ink pill (dark bar, accent button) rather than 3d-print's soft bar.
+- **"Zużyj wkrótce" tile** carries the small `--warn-dot`, as in the accent board; the plain A pantry board had none.
+- **Month-precision dates** count as "Zużyj wkrótce" during their month ("lis 2026 / do końca mies."), day dates within the household threshold (7 days).
