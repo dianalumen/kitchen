@@ -1,8 +1,10 @@
 // S1: settings sheet, opened from the gear in the headers. Household name, invite code (share,
-// new code), members, theme (per device), accent (per household), categories, sign out.
+// new code), members, theme (per device), accent (per household), categories (js/categories.js),
+// sign out.
 import { t, fmtDay } from "./i18n.js";
 import { esc, icon, openSheet, toast, store, applyTheme, ACCENTS } from "./ui.js";
 import { state, onChange, saveSettings, getBackend, errorText, changed } from "./store.js";
+import { openCategories } from "./categories.js";
 
 // Swatch colors for the picker (Matcha shows its per-theme value through --accent-matcha).
 const SWATCH = { matcha: "var(--matcha)", tomato: "#FF8A65", apricot: "#FFB86B", lavender: "#B4A5FF", mint: "#7EDCC0", sunflower: "#FFD84D" };
@@ -81,7 +83,7 @@ export function openSettings() {
         if (act === "share") return share();
         if (act === "rename") { close(true); return renameSheet(); }
         if (act === "new-code") { close(true); return newCodeSheet(); }
-        if (act === "categories") { close(true); return categoriesSheet(); }
+        if (act === "categories") { close(true); return openCategories(); }
         if (act === "signout") return signOut();
       });
     },
@@ -140,16 +142,5 @@ function newCodeSheet() {
         } catch (err) { close(true); toast(errorText(err, "toast_not_saved")); }
       });
     }
-  });
-}
-
-// Placeholder until M3: the categories in aisle order, read-only.
-function categoriesSheet() {
-  const cats = [...state.categories].sort((a, b) => a.position - b.position);
-  openSheet({
-    title: t("set_categories"),
-    body: "<p>" + esc(t("set_categories_soon")) + '</p><div class="group">' +
-      cats.map((c, i) => '<div class="rowbtn"><span class="ic num">' + (i + 1) + '</span><span class="nm">' + esc(c.name) + "</span></div>").join("") + "</div>",
-    onClose: (replaced) => { if (!replaced) openSettings(); }
   });
 }

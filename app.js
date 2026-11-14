@@ -2,7 +2,7 @@
 // shell (router, tab bar, settings) with realtime sync. See TECH-GUIDELINES §6 and §9.
 import { t } from "./js/i18n.js";
 import { $, store, applyTheme, applyAccent, closeSheet } from "./js/ui.js";
-import { state, useBackend, setData, applyRemote, onChange } from "./js/store.js";
+import { state, useBackend, setData, applyRemote, onChange, flushQueue } from "./js/store.js";
 import { sbBackend } from "./js/backend.js";
 import { demoBackend, DEMO_USER } from "./js/demo.js";
 import { buildTabbar, startRouter, paintDemoBanner, paintStatus, on } from "./js/shell.js";
@@ -52,6 +52,8 @@ async function reload() {
   if (!B || !state.loaded || reloading) return reloading;
   reloading = (async () => {
     try {
+      // Writes made offline go first; until they are sent, server data would hide them.
+      if (!(await flushQueue())) return;
       const d = await B.load(state.user);
       if (!d.noHousehold) setData(d);
     } catch (e) { console.warn("Reload failed", e); }
@@ -70,7 +72,9 @@ function onLive(live) {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && !state.demo) reload();
+  if (document.hidden) return;
+  if (!state.demo) reload();
+  else flushQueue();
 });
 window.addEventListener("online", () => { state.online = true; paintStatus(); reload(); });
 window.addEventListener("offline", () => { state.online = false; paintStatus(); });

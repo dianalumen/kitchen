@@ -128,25 +128,86 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
 /* Tick fill: the accent grows from the tap point (--x/--y set in JS). */
 .card .fill{position:absolute;inset:0;background:var(--accent);clip-path:circle(0% at var(--x,90%) var(--y,50%));transition:clip-path .5s cubic-bezier(.3,.7,.2,1)}
 .card>*:not(.fill){position:relative}
-.card[aria-pressed="true"]{color:var(--on-accent)}
-.card[aria-pressed="true"] .fill{clip-path:circle(150% at var(--x,90%) var(--y,50%))}
-.card .ic{width:44px;height:44px;border-radius:50%;background:var(--ic);display:grid;place-items:center;flex:none;transition:background .25s,color .25s}
-.card[aria-pressed="true"] .ic{background:#fff;color:#141414}
+.card.on{color:var(--on-accent)}
+.card.on .fill{clip-path:circle(150% at var(--x,90%) var(--y,50%))}
+.card .ic{width:44px;height:44px;border-radius:50%;background:var(--ic);color:inherit;border:0;padding:0;display:grid;place-items:center;flex:none;transition:background .25s,color .25s,transform .15s}
+button.ic:active{transform:scale(.9)}
+.card.on .ic{background:#fff;color:#141414}
+.card .tap{flex:1;min-width:0;align-self:stretch;display:flex;align-items:center;gap:12px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;margin:-8px -12px -8px 0;padding:8px 12px 8px 0;border-radius:0 24px 24px 0}
+.card .tap:focus-visible{outline-offset:-4px}
 .card .nm{flex:1;min-width:0;overflow-wrap:anywhere}
 .mn{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-top:1px}
-.card[aria-pressed="true"] .mn{color:var(--on-accent)}
+.card.on .mn{color:var(--on-accent)}
 .card .ck{width:34px;height:34px;border-radius:50%;border:2px solid var(--faint);display:grid;place-items:center;flex:none;transition:background .2s,border-color .2s}
 .card .ck svg{width:18px;height:18px;stroke-width:2.6;color:#fff;transform:scale(0);transition:transform .35s cubic-bezier(.3,1.8,.5,1)}
-.card[aria-pressed="true"] .ck{background:#141414;border-color:#141414}
-.card[aria-pressed="true"] .ck svg{transform:scale(1)}
-.bought{display:flex;align-items:center;gap:8px;border-radius:24px;border:2px dashed var(--line);padding:6px 6px 6px 16px;min-height:60px;font-weight:600}
-.bought .t{flex:1;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.card.on .ck{background:#141414;border-color:#141414}
+.card.on .ck svg{transform:scale(1)}
+.card.leaving{opacity:0;transform:scale(.97);transition:opacity .16s,transform .16s}
+.card.flash{animation:flash .5s var(--ease-out)}
+@keyframes flash{40%{transform:scale(1.025)}}
+/* Bought rows (expanded "Kupione"): quiet, struck through, ink check */
+.card.done{background:transparent;box-shadow:inset 0 0 0 1.5px var(--line);min-height:56px}
+.card.done .nm{color:var(--muted);font-weight:500}
+.card.done .tx{text-decoration:line-through;text-decoration-thickness:1.5px}
+.card.done .ic{width:40px;height:40px;background:var(--soft);color:var(--muted)}
+.card.done .ck{background:var(--ink);border-color:var(--ink)}
+.card.done .ck svg{transform:scale(1);color:var(--on-ink)}
+.bought{display:flex;align-items:center;gap:8px;border-radius:24px;border:2px dashed var(--line);padding:6px 6px 6px 6px;min-height:60px;font-weight:600}
+.bought .t{flex:1;min-width:0;display:flex;align-items:center;gap:6px;color:var(--muted);border:0;background:transparent;font:inherit;font-weight:600;min-height:46px;padding:0 6px 0 10px;border-radius:999px;text-align:left}
 .bought .t b{color:var(--ink);font-variant-numeric:tabular-nums;margin-left:2px}
-.bought .t svg{width:16px;height:16px}
+.bought .t svg{width:16px;height:16px;transition:transform .25s var(--ease-out)}
+.bought .t[aria-expanded="true"] svg{transform:rotate(180deg)}
+.bought .btn{padding:0 14px}
+@media (max-width:350px){.bought .btn{padding:0 10px;font-size:14px}}
 .empty{background:var(--soft);border-radius:24px;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .empty .ic{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
 .empty b{font-size:19px;font-weight:600}
 .empty span{color:var(--muted);font-size:14px}
+.empty .btn{margin-top:6px}
+
+/* ---------------------------------------------------------------- add bar (L2) */
+.addbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);margin:-8px -16px;padding:8px 16px}
+.ac{position:absolute;left:16px;right:16px;top:calc(100% - 2px);background:var(--bg2);border-radius:24px;padding:6px;display:flex;flex-direction:column;box-shadow:0 0 0 1.5px var(--line),0 14px 40px rgba(0,0,0,.14);max-height:min(340px,52svh);overflow:auto;overscroll-behavior:contain}
+.acr{display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 10px 6px 6px;border-radius:18px;cursor:pointer;font-weight:600}
+.acr[aria-selected="true"]{background:var(--soft)}
+.acr .ic{width:40px;height:40px;border-radius:50%;background:var(--soft);display:grid;place-items:center;flex:none}
+.acr[aria-selected="true"] .ic{background:var(--ic)}
+.acr .ic svg{width:19px;height:19px}
+.acr .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.tag{font-size:12px;font-weight:600;color:var(--ink);background:var(--soft);border-radius:999px;padding:4px 9px;white-space:nowrap;font-variant-numeric:tabular-nums;flex:none}
+.acr[aria-selected="true"] .tag{background:var(--bg2)}
+
+/* ---------------------------------------------------------------- edit sheet (L3) */
+.amtrow{display:flex;gap:10px;align-items:flex-start}
+.amt{width:92px;flex:none}
+.amt .fld{text-align:center;padding:0 10px}
+.units{flex:1;min-width:0}
+.units .chips{min-height:52px;align-items:center}
+.units .chip{min-width:44px;justify-content:center}
+.sheet .chips{margin:0 -18px 0 0;padding:0 18px 0 0}
+.sheet .chip[aria-pressed="false"]{background:var(--soft)}
+.fld.pick{display:flex;align-items:center;gap:10px;text-align:left;padding:0 18px 0 6px;cursor:pointer}
+.fld.pick .ic{width:40px;height:40px;border-radius:50%;background:var(--ic);display:grid;place-items:center;flex:none}
+.fld.pick .ic svg{width:19px;height:19px}
+.fld.pick .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld.pick .chev{width:18px;height:18px;color:var(--muted);transition:transform .25s}
+.fld.pick[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.catpick{margin-top:8px;max-height:280px;overflow:auto}
+.rowbtn svg.sel{width:20px;height:20px;stroke-width:2.6}
+.rowbtn[aria-checked="true"]{background:var(--bg)}
+
+/* ---------------------------------------------------------------- categories sheet (S1) */
+.cats{gap:2px}
+.catrow{display:flex;align-items:center;gap:4px;border-radius:18px;padding:4px;min-height:56px;background:var(--soft);touch-action:pan-y}
+.catrow.drag{position:relative;z-index:2;background:var(--bg2);box-shadow:0 0 0 1.5px var(--line),0 10px 28px rgba(0,0,0,.16);transition:none}
+.catrow.shift{transition:transform .18s var(--ease-out)}
+.catrow .handle svg{stroke-width:3.2}
+.catrow .handle{width:44px;height:44px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;border-radius:50%;flex:none;touch-action:none;cursor:grab;padding:0}
+.catrow.drag .handle{cursor:grabbing;color:var(--ink)}
+.catrow .nm{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-weight:600;color:var(--ink);text-align:left;min-height:44px;padding:0 6px;border-radius:12px;overflow-wrap:anywhere}
+.catrow .nm small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.catrow .round{width:40px;height:40px;background:transparent;color:var(--muted)}
+.catrow .round:disabled{opacity:.25}
 
 /* ---------------------------------------------------------------- chips, segmented control */
 .chips{display:flex;gap:6px;overflow-x:auto;margin:0 -16px;padding:0 16px;scrollbar-width:none}

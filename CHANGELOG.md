@@ -1,5 +1,20 @@
 # Changelog
 
+## M3 · Shopping list — 2026-11-14
+
+- **L2** add field pinned on top (sticky): `js/parse.js` reads `name amount unit` (`mleko 2 l`, `jajka 10`, `mąka 0,5 kg`, `2 l mleka`, `sok 1,5l`, `1/2`, comma decimals, plural spellings like `2 łyżki`), using only the household's unit codes. Autocomplete from the list ("na liście", "kupione"), the pantry ("w domu 1 l", "mało w domu") and recent adds ("ostatnio"), plus "Dodaj „…”" with the guessed category. Enter adds what was typed; a name already on the list is merged instead of duplicated (amounts added when units match), a bought one goes back on the list.
+- Category guess: same name in the pantry, on the list or in recent adds, else the longest `category_rules` keyword in the name. Picking a category in the edit sheet saves a rule for that name, so the next add gets it on both phones.
+- **L1** groups in `categories.position` order, uncategorized items in "Inne". Tap fills the card with the accent from the tap point; a second tap within 600 ms undoes; then the row fades and moves into "Kupione 3", which expands to the bought rows (tap to put back) and has *Wyczyść* (bulk delete with undo) and *Do spiżarni* (`move_checked_to_pantry`, toast with the count).
+- **L3** edit sheet (icon on the left of a row, or hold the row): name, amount + unit chips, category picker, note, *Usuń* with undo, *Zapisz*.
+- **L4** empty state "Wszystko kupione" with the `mleko 2 l` tip and *Przepisy*; eyebrow "Nic do kupienia".
+- Categories sheet in settings (`js/categories.js`): rename, add, delete with undo (restores the category, its rules and the item links), reorder by dragging the handle (pointer events) or arrow keys on the handle.
+- Store: `optimistic()` for multi-row writes, `insertRows` / `updateRows` / `deleteRows` (one request each); backends got `insertMany`, `updateMany`, `removeMany`. Writes that fail because the network is gone stay applied and wait in an in-memory queue, sent in order on reconnect, visibility or every 15 s; the offline pill then says "zapisze się później".
+- List repaints only when its markup changes and reuse row elements, so realtime events never restart a tick or move focus.
+- Units with Polish forms (`2 łyżki`, `5 łyżek`, `1,5 łyżki`) via `unit_forms` in `i18n/pl.js` (pantry and recipes use it too).
+- `?demo`: demo backend simulates the RPC's realtime events and the foreign-key cascades of a category delete, and fails writes with a network error while the browser is offline.
+- `tests/parse.html` (not deployed): 36 checks for the parser, rule matching and suggestions.
+- `sw.js` cache `kitchen-v2` with the two new modules.
+
 ## M2 · App shell — 2026-11-13
 
 - `styles.css`: direction A tokens (Matcha accent per theme, `--muted #6E6C65`, `--warn-dot`), light/dark via `prefers-color-scheme` and `[data-theme]`, six accent swatches via `[data-accent]`, `prefers-reduced-motion`; Leaflet components ported at A-board sizes (`.app`, `.ttl`/`.eyebrow`, `.card` with the tick fill, `.chip`, `.seg`, `.tile`, `.group`/`.rowbtn`, `.tabbar`, `.sheet`/`.scrim`, `.btn`, toast, view transitions).
