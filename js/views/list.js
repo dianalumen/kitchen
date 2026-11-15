@@ -10,6 +10,7 @@ import { esc, icon, categoryGlyph, openSheet, toast, store, reducedMotion } from
 import { state, insertRow, updateRow, deleteRow, deleteRows, optimistic, putLocal, dropLocal, byId, getBackend } from "../store.js";
 import { header, setEyebrow, settingsButton, registerView, go } from "../shell.js";
 import { parseItem, matchRule, suggest, nameKey, toNumber } from "../parse.js";
+import { catById, otherCat, catName, unitCodes, unitChipsHtml, bindUnitChips, categoryFieldHtml, bindCategoryField } from "../pickers.js";
 
 const TICK_DELAY = 600;   // ms to change your mind before a ticked item moves to "Kupione"
 const LEAVE_MS = 160;     // fade-out before the row leaves its group
@@ -23,14 +24,6 @@ let lastHtml = "";
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
-const sortedCats = () => [...state.categories].sort((a, b) => a.position - b.position || String(a.name).localeCompare(b.name, "pl"));
-const catById = (id) => (id ? state.categories.find((c) => c.id === id) : null);
-// Items without a category join the household's "Inne" category when it exists, else get their
-// own "Inne" group at the end.
-const otherCat = () => state.categories.find((c) => c.nameKey === "inne" || nameKey(c.name) === "inne");
-const catName = (id) => { const c = catById(id); return c ? c.name : t("list_no_category"); };
-const unitCodes = () => [...state.units].sort((a, b) => a.position - b.position).map((u) => u.code);
-
 // Category for a new item: the same name in the pantry, on the list or in recent history, else the
 // longest matching category rule.
 export function guessCategory(name) {
@@ -191,20 +184,18 @@ function initAdd(root) {
   });
 }
 
-// Adds an option. A name already on the list is not duplicated: an open item takes the new amount
-// when the units allow, a bought one goes back on the list.
-function add(root, opt) {
-  const input = root.querySelector('input[name="item"]');
-  input.value = "";
-  hideAc(root);
-  input.focus({ preventScroll: true });
-  const name = opt.name.trim().slice(0, 120);
-  if (!name) return;
+// Puts a product on the list. A name already on the list is not duplicated: an open item takes the
+// new amount when the units allow, a bought one goes back on the list. Used by the add field and
+// by the pantry ("Dodaj do listy"). Returns { status: "new" | "merged" | "back", name, id }.
+export function addToList({ name, amount = null, unit = null, categoryId = null }) {
+  name = String(name || "").trim().slice(0, 120);
+  if (!name) return null;
   const key = nameKey(name);
   const same = state.shopping.filter((s) => nameKey(s.name) === key);
   const open = same.find((s) => !s.checked);
-  const amount = opt.amount ?? null, unit = amount != null ? opt.unit ?? null : null;
-  remember({ name, amount, unit, categoryId: opt.categoryId });
+  amount = amount ?? null;
+  unit = amount != null ? unit ?? null : null;
+  remember({ name, amount, unit, categoryId });
   if (open) {
     let patch = null;
     if (amount != null) {
@@ -212,18 +203,26 @@ function add(root, opt) {
       else if ((open.unit || null) === unit) patch = { amount: Math.round((open.amount + amount) * 1000) / 1000 };
     }
     if (patch) updateRow("shopping", open.id, patch);
-    toast(t("list_already", { name: open.name }));
-    flash(root, open.id);
-    return;
+    return { status: "merged", name: open.name, id: open.id };
   }
   const bought = same[0];
   if (bought) {
     updateRow("shopping", bought.id, { checked: false, ...(amount != null ? { amount, unit } : {}) });
-    toast(t("list_back_on", { name: bought.name }));
-    flash(root, bought.id);
-    return;
+    return { status: "back", name: bought.name, id: bought.id };
   }
-  insertRow("shopping", { name, amount, unit, categoryId: opt.categoryId || null, checked: false, note: null, recipeId: null });
+  const row = insertRow("shopping", { name, amount, unit, categoryId: categoryId || null, checked: false, note: null, recipeId: null });
+  return { status: "new", name, row };
+}
+
+function add(root, opt) {
+  const input = root.querySelector('input[name="item"]');
+  input.value = "";
+  hideAc(root);
+  input.focus({ preventScroll: true });
+  const res = addToList(opt);
+  if (!res || res.status === "new") return;
+  toast(t(res.status === "merged" ? "list_already" : "list_back_on", { name: res.name }));
+  flash(root, res.id);
 }
 
 // Brief highlight of a row that was merged into, after the next paint.
@@ -438,16 +437,6 @@ function openEdit(id) {
   if (!it) return;
   let unit = it.unit || null;
   let categoryId = catById(it.categoryId) ? it.categoryId : null;
-  let picking = false;
-  const codes = unitCodes();
-  if (unit && !codes.includes(unit)) codes.unshift(unit);
-
-  const unitChips = () => codes.map((c) =>
-    '<button type="button" class="chip" data-unit="' + esc(c) + '" aria-pressed="' + (c === unit) + '">' + esc(c) + "</button>").join("");
-  const catList = () => '<div class="group catpick" role="radiogroup" aria-label="' + esc(t("list_category")) + '">' +
-    sortedCats().map((c) => '<button type="button" class="rowbtn" role="radio" data-cat="' + esc(c.id) + '" aria-checked="' + (c.id === categoryId) + '">' +
-      '<span class="ic">' + icon(categoryGlyph(c.name)) + '</span><span class="nm">' + esc(c.name) + "</span>" +
-      (c.id === categoryId ? icon("check", "sel") : "") + "</button>").join("") + "</div>";
 
   openSheet({
     title: t("list_edit_title"),
@@ -456,49 +445,15 @@ function openEdit(id) {
       '<div><label class="lbl" for="e-name">' + esc(t("list_name")) + '</label><input class="fld" id="e-name" name="name" maxlength="120" autocomplete="off" value="' + esc(it.name) + '"></div>' +
       '<div class="amtrow"><div class="amt"><label class="lbl" for="e-amount">' + esc(t("list_amount")) + '</label>' +
       '<input class="fld num" id="e-amount" name="amount" inputmode="decimal" autocomplete="off" value="' + esc(it.amount != null ? String(it.amount).replace(".", ",") : "") + '"></div>' +
-      '<div class="units"><span class="lbl" id="e-unit">' + esc(t("list_unit")) + '</span><div class="chips" role="group" aria-labelledby="e-unit" data-units>' + unitChips() + "</div></div></div>" +
-      '<div><span class="lbl">' + esc(t("list_category")) + '</span>' +
-      '<button type="button" class="fld pick" data-pick aria-expanded="false"><span class="ic">' + icon(categoryGlyph(categoryId ? catName(categoryId) : "")) + "</span>" +
-      '<span class="nm" data-catname>' + esc(catName(categoryId)) + "</span>" + icon("down", "chev") + "</button>" +
-      '<div data-catlist hidden></div></div>' +
+      '<div class="units"><span class="lbl" id="e-unit">' + esc(t("list_unit")) + "</span>" + unitChipsHtml(unit, "e-unit") + "</div></div>" +
+      "<div>" + categoryFieldHtml(categoryId) + "</div>" +
       '<div><label class="lbl" for="e-note">' + esc(t("list_note")) + '</label><input class="fld" id="e-note" name="note" maxlength="500" autocomplete="off" placeholder="' + esc(t("list_note_ph")) + '" value="' + esc(it.note || "") + '"></div>' +
       '<div class="acts"><button type="button" class="btn danger" data-delete>' + esc(t("list_delete")) + '</button><button type="submit" class="btn black">' + esc(t("save")) + "</button></div>" +
       "</form>",
     onMount(sheet, close) {
       const form = sheet.querySelector("form");
-      const units = sheet.querySelector("[data-units]");
-      const pick = sheet.querySelector("[data-pick]");
-      const list = sheet.querySelector("[data-catlist]");
-      const selUnit = units.querySelector('[aria-pressed="true"]');
-      if (selUnit) {
-        const a = units.getBoundingClientRect(), b = selUnit.getBoundingClientRect();
-        units.scrollLeft = Math.max(0, b.left - a.left - a.width / 2 + b.width / 2);
-      }
-      units.addEventListener("click", (e) => {
-        const b = e.target.closest("[data-unit]");
-        if (!b) return;
-        unit = unit === b.dataset.unit ? null : b.dataset.unit; // tap again for no unit
-        units.querySelectorAll("[data-unit]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.unit === unit)));
-      });
-      pick.addEventListener("click", () => {
-        picking = !picking;
-        pick.setAttribute("aria-expanded", String(picking));
-        list.innerHTML = picking ? catList() : "";
-        list.hidden = !picking;
-        if (picking) { const sel = list.querySelector('[aria-checked="true"]') || list.querySelector("[data-cat]"); if (sel) sel.focus({ preventScroll: true }); }
-      });
-      list.addEventListener("click", (e) => {
-        const b = e.target.closest("[data-cat]");
-        if (!b) return;
-        categoryId = b.dataset.cat === categoryId ? null : b.dataset.cat;
-        sheet.querySelector("[data-catname]").textContent = catName(categoryId);
-        pick.querySelector(".ic").innerHTML = icon(categoryGlyph(categoryId ? catName(categoryId) : ""));
-        picking = false;
-        pick.setAttribute("aria-expanded", "false");
-        list.hidden = true;
-        list.innerHTML = "";
-        pick.focus({ preventScroll: true });
-      });
+      bindUnitChips(sheet, unit, (u) => { unit = u; });
+      bindCategoryField(sheet, categoryId, (c) => { categoryId = c; });
       sheet.querySelector("[data-delete]").addEventListener("click", () => {
         close();
         deleteRow("shopping", id, { undoLabel: t("toast_deleted", { name: it.name }) });
@@ -526,7 +481,7 @@ function openEdit(id) {
 
 // Picking a category by hand teaches the household: next time this name gets the same category
 // on both phones (a category rule with the full name as its keyword).
-function learnRule(name, categoryId) {
+export function learnRule(name, categoryId) {
   const key = nameKey(name);
   const rule = state.categoryRules.find((r) => (r.keywordKey || nameKey(r.keyword)) === key);
   if (!categoryId) { if (rule) deleteRow("categoryRules", rule.id); return; }

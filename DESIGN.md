@@ -156,3 +156,11 @@ Recorded per the working rules; each can be changed back if it reads wrong on th
 - **Picking a category in the edit sheet saves a category rule** for that name, so both phones file it the same way next time.
 - **Offline pill** reads "Bez połączenia" plus "zapisze się później" while writes are waiting.
 - **Category order** is changed with a drag handle (or arrow keys on it), not up/down buttons.
+
+### Deliberate differences in the build (M4)
+- **Each item appears once.** An item in "Zużyj wkrótce" or "Mało" is not repeated in its category group; while searching, the two sections are hidden and results are grouped by category.
+- **Month precision = last day of the month**, so "Zużyj wkrótce" starts in the last week of that month (threshold days), not on the 1st.
+- **Tiles are buttons** that scroll to their section; a tile with 0 is disabled, and the whole tile row is hidden when both are 0.
+- **Month picker is two selects** (month, year) because iOS Safari has no `type="month"`; day uses the native date input.
+- **Stepping up clears *Mało*** (you just added some); the switch stays manual otherwise.
+- **The item sheet has no name field**; delete and re-add to rename.

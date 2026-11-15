@@ -1,12 +1,12 @@
 // kitchen service worker: network first for the app's own files, cache only as an offline
 // fallback, so a new deploy shows up on the next load. Supabase, the CDN and fonts (other
 // origins) are never cached. Bump CACHE whenever SHELL changes (TECH-GUIDELINES §8).
-const CACHE = "kitchen-v2";
+const CACHE = "kitchen-v3";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest",
   "./i18n/pl.js",
   "./js/i18n.js", "./js/ui.js", "./js/store.js", "./js/backend.js", "./js/demo.js",
-  "./js/shell.js", "./js/gates.js", "./js/settings.js", "./js/categories.js", "./js/parse.js",
+  "./js/shell.js", "./js/gates.js", "./js/settings.js", "./js/categories.js", "./js/parse.js", "./js/pickers.js",
   "./js/views/list.js", "./js/views/pantry.js", "./js/views/recipes.js",
   "./icons/icon.svg", "./icons/icon-192.png", "./icons/icon-512.png",
   "./icons/maskable-512.png", "./icons/apple-touch-icon.png"
