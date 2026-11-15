@@ -103,6 +103,7 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
       if (onClose) onClose(replaced);
     };
     if (instant || reducedMotion()) return done();
+    sheet.style.animation = "";
     scrim.classList.add("closing");
     setTimeout(done, 200);
   };
@@ -115,40 +116,12 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
     if (e.target === scrim || e.target.closest("[data-sheet-close]")) close();
   });
   current = { scrim, close };
-  fitToKeyboard(scrim, sheet);
+  // Once it has slid in, stop the entry animation so toggling the keyboard layout never replays it.
+  setTimeout(() => { if (!closed) sheet.style.animation = "none"; }, 400);
   if (onMount) onMount(sheet, close);
   const first = sheet.querySelector("[autofocus]") || sheet.querySelector("[data-sheet-close]");
   if (first) first.focus({ preventScroll: true });
   return close;
-}
-
-// On phones the on-screen keyboard covers the bottom of the page without resizing it. Follow the
-// visual viewport so the sheet sits above the keyboard, and keep the focused field in view.
-function fitToKeyboard(scrim, sheet) {
-  const vv = window.visualViewport;
-  const field = () => { const a = document.activeElement; return a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.type !== "date" ? a : null; };
-  // While a field is focused the sheet moves to the top of the visible area (above the keyboard)
-  // and gets that area's height, instead of staying glued to the bottom behind the keyboard.
-  const fit = () => {
-    const f = field();
-    scrim.classList.toggle("kbd", !!f);
-    if (!f) { scrim.style.top = scrim.style.height = sheet.style.maxHeight = ""; return; }
-    const top = vv ? vv.offsetTop : 0, h = vv && vv.height > 200 ? vv.height : window.innerHeight * 0.5;
-    if (h < 200) return; // hidden pane: no usable size
-    scrim.style.top = top + "px";
-    scrim.style.height = h + "px";
-    sheet.style.maxHeight = Math.round(h - 16) + "px";
-    f.scrollIntoView({ block: "center" });
-  };
-  const later = () => [0, 120, 350, 700].forEach((ms) => setTimeout(fit, ms)); // iOS reports the keyboard late
-  sheet.addEventListener("focusin", later);
-  sheet.addEventListener("focusout", () => setTimeout(fit, 80));
-  if (vv) {
-    vv.addEventListener("resize", fit);
-    vv.addEventListener("scroll", fit);
-    new MutationObserver((_, o) => { if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); o.disconnect(); } })
-      .observe(document.body, { childList: true });
-  }
 }
 
 export function closeSheet() { if (current) current.close(); }
@@ -216,4 +189,34 @@ export function applyTheme(theme) {
 export function applyAccent(accent) {
   document.documentElement.dataset.accent = ACCENTS.includes(accent) ? accent : "matcha";
   store("accent", document.documentElement.dataset.accent); // first paint uses the last known accent
+}
+
+// ---------------------------------------------------------------------------
+// ?debug: a small overlay with the numbers that decide where a sheet sits relative to the keyboard.
+// For diagnosing the on-screen keyboard on a real phone; the build stamp shows which code is running.
+// ---------------------------------------------------------------------------
+export const BUILD = "kbd-4";
+export function initDebug() {
+  if (!/[?&]debug\b/.test(location.search)) return;
+  const box = document.createElement("pre");
+  box.style.cssText = "position:fixed;left:4px;top:60px;z-index:999;margin:0;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.75);color:#0f0;font:11px/1.3 monospace;pointer-events:none;white-space:pre";
+  document.body.appendChild(box);
+  const upd = () => {
+    const vv = window.visualViewport, sc = document.querySelector(".scrim"), sh = document.querySelector(".sheet");
+    const r = sh ? sh.getBoundingClientRect() : null;
+    box.textContent = [
+      "build " + BUILD,
+      "inner " + innerWidth + "x" + innerHeight,
+      vv ? "vv " + Math.round(vv.width) + "x" + Math.round(vv.height) + " top " + Math.round(vv.offsetTop) : "no vv",
+      "scrollY " + Math.round(scrollY),
+      "active " + (document.activeElement ? document.activeElement.tagName : "-"),
+      sc ? "scrim " + sc.className + " " + sc.style.top + " " + sc.style.height : "no sheet",
+      r ? "sheet " + Math.round(r.top) + ".." + Math.round(r.bottom) : ""
+    ].join("\n");
+  };
+  ["resize", "scroll"].forEach((e) => { window.addEventListener(e, upd); if (window.visualViewport) window.visualViewport.addEventListener(e, upd); });
+  document.addEventListener("focusin", () => setTimeout(upd, 400));
+  document.addEventListener("focusout", () => setTimeout(upd, 400));
+  setInterval(upd, 500);
+  upd();
 }

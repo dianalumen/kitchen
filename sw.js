@@ -1,7 +1,7 @@
 // kitchen service worker: network first for the app's own files, cache only as an offline
 // fallback, so a new deploy shows up on the next load. Supabase, the CDN and fonts (other
 // origins) are never cached. Bump CACHE whenever SHELL changes (TECH-GUIDELINES §8).
-const CACHE = "kitchen-v3";
+const CACHE = "kitchen-v4";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest",
   "./i18n/pl.js",
@@ -29,7 +29,7 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   // config.js holds the project URL and key; always fresh, cached only as a fallback like the rest.
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" }) // revalidate: GitHub Pages' 10 min max-age must not hide a new deploy
       .then((res) => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return res;
