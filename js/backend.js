@@ -80,16 +80,17 @@ export function sbBackend(sb) {
     sendReset: (email) => sb.auth.resetPasswordForEmail(email, { redirectTo: here() }),
     setPassword: (password) => sb.auth.updateUser({ password }),
 
+    // One round trip: RLS limits every table to current_household() (a user is in at most one), so
+    // the membership check runs alongside the rest instead of before it. Without a household every
+    // query simply comes back empty.
     async load(user) {
-      const me = await must(sb.from("household_members").select("*").eq("user_id", user.id).maybeSingle());
-      if (!me) return { noHousehold: true };
-      householdId = me.household_id;
       const all = (table, order = "position") => must(sb.from(table).select("*").order(order));
-      const [household, members, settings, categories, categoryRules, units, shopping, pantry, recipes, ingredients, steps] =
+      const [me, household, members, settings, categories, categoryRules, units, shopping, pantry, recipes, ingredients, steps] =
         await Promise.all([
-          must(sb.from("households").select("*").eq("id", me.household_id).single()),
+          must(sb.from("household_members").select("household_id").eq("user_id", user.id).maybeSingle()),
+          must(sb.from("households").select("*").maybeSingle()),
           must(sb.from("household_members").select("*").order("joined_at")),
-          must(sb.from("household_settings").select("*").eq("household_id", me.household_id).maybeSingle()),
+          must(sb.from("household_settings").select("*").maybeSingle()),
           all("categories"),
           all("category_rules", "keyword"),
           all("units"),
@@ -99,6 +100,8 @@ export function sbBackend(sb) {
           all("recipe_ingredients"),
           all("recipe_steps")
         ]);
+      if (!me || !household) return { noHousehold: true };
+      householdId = me.household_id;
       return {
         household: fromRow(household),
         members: members.map(fromRow),
