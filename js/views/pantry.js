@@ -7,7 +7,7 @@
 // elements; a repaint only touches the ones whose markup changed, so ~150 rows stay smooth and a
 // realtime event for one row replaces one element.
 import { t, fmtAmount, fmtNum, unitLabel, fmtDay, fmtMonth, daysUntil, list as dict } from "../i18n.js";
-import { esc, icon, categoryGlyph, openSheet, toast, reducedMotion } from "../ui.js";
+import { esc, icon, categoryGlyph, openSheet, toast, reducedMotion, sync } from "../ui.js";
 import { state, insertRow, updateRow, deleteRow, byId } from "../store.js";
 import { header, setEyebrow, settingsButton, registerView, on } from "../shell.js";
 import { parseItem, nameKey, toNumber } from "../parse.js";
@@ -93,28 +93,6 @@ function mount(root) {
 function update(root) {
   setEyebrow(root, t("pantry_count", { n: state.pantry.length }));
   paint(root);
-}
-
-const mk = (html) => { const tpl = document.createElement("template"); tpl.innerHTML = html.trim(); return tpl.content.firstElementChild; };
-
-// Brings `parent`'s children in line with `items` ([{ key, html, sig?, after? }]): existing elements
-// whose signature is unchanged stay as they are, new ones are created, extra ones removed.
-function sync(parent, items) {
-  const have = new Map();
-  for (const c of parent.children) have.set(c.dataset.k, c);
-  let prev = null;
-  for (const it of items) {
-    const sig = it.sig ?? it.html;
-    let el = have.get(it.key);
-    have.delete(it.key);
-    if (!el) { el = mk(it.html); el._s = sig; }
-    else if (el._s !== sig) { const n = mk(it.html); n._s = sig; el.replaceWith(n); el = n; }
-    const want = prev ? prev.nextElementSibling : parent.firstElementChild;
-    if (el !== want) parent.insertBefore(el, want);
-    prev = el;
-    if (it.after) it.after(el);
-  }
-  for (const el of have.values()) el.remove();
 }
 
 function rowHtml(p, alert) {

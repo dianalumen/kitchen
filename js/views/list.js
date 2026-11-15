@@ -186,8 +186,8 @@ function initAdd(root) {
 
 // Puts a product on the list. A name already on the list is not duplicated: an open item takes the
 // new amount when the units allow, a bought one goes back on the list. Used by the add field and
-// by the pantry ("Dodaj do listy"). Returns { status: "new" | "merged" | "back", name, id }.
-export function addToList({ name, amount = null, unit = null, categoryId = null }) {
+// by the pantry ("Dodaj do listy") and by recipes (with recipeId). Returns { status: "new" | "merged" | "back", name, id }.
+export function addToList({ name, amount = null, unit = null, categoryId = null, recipeId = null }) {
   name = String(name || "").trim().slice(0, 120);
   if (!name) return null;
   const key = nameKey(name);
@@ -210,8 +210,9 @@ export function addToList({ name, amount = null, unit = null, categoryId = null 
     updateRow("shopping", bought.id, { checked: false, ...(amount != null ? { amount, unit } : {}) });
     return { status: "back", name: bought.name, id: bought.id };
   }
-  const row = insertRow("shopping", { name, amount, unit, categoryId: categoryId || null, checked: false, note: null, recipeId: null });
-  return { status: "new", name, row };
+  const row = insertRow("shopping", { name, amount, unit, categoryId: categoryId || null, checked: false, note: null, recipeId: recipeId || null });
+  const added = state.shopping.find((s) => !s.checked && nameKey(s.name) === key);
+  return { status: "new", name, row, id: added && added.id };
 }
 
 function add(root, opt) {

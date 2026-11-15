@@ -282,23 +282,116 @@ input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
 
 /* ---------------------------------------------------------------- recipe cards (R1 grid) */
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.rcard{border:0;background:var(--soft);color:var(--ink);border-radius:24px;padding:6px 6px 12px;display:flex;flex-direction:column;gap:8px;text-align:left;transition:transform .18s var(--ease-spring)}
+.grid .empty{grid-column:1/-1}
+.rcard{border:0;background:var(--soft);color:var(--ink);border-radius:24px;padding:6px 6px 12px;display:flex;flex-direction:column;gap:8px;text-align:left;transition:transform .18s var(--ease-spring);min-width:0}
 .rcard:active{transform:scale(.97)}
-.rcard .ph{aspect-ratio:4/3;border-radius:18px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
+.rcard .ph{position:relative;overflow:hidden;aspect-ratio:4/3;border-radius:18px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
 .rcard .ph svg{width:44px;height:44px;stroke-width:1.5}
-.rcard b{font-size:16px;font-weight:600;padding:0 6px;line-height:1.2}
+.rcard .ph img,.photo img,.ephoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rcard b{font-size:16px;font-weight:600;padding:0 6px;line-height:1.2;overflow-wrap:anywhere}
 .rcard span{font-size:13px;color:var(--muted);font-weight:500;padding:0 6px;font-variant-numeric:tabular-nums}
 
 /* ---------------------------------------------------------------- recipe view (R2) */
-.photo{height:190px;border-radius:26px;background:var(--accent);position:relative;display:grid;place-items:center;color:var(--on-accent);flex:none}
+.photo{height:210px;border-radius:26px;background:var(--accent);position:relative;overflow:hidden;display:grid;place-items:center;color:var(--on-accent);flex:none}
 .photo svg.big{width:96px;height:96px;stroke-width:1.4}
-.photo .round{position:absolute;left:10px;top:10px;background:rgba(255,255,255,.85);color:#141414}
+.photo .round{position:absolute;z-index:1;left:10px;top:10px;background:rgba(255,255,255,.85);color:#141414}
+.photo .round.edit{left:auto;right:10px}
 .ttl.ttl-sm{font-size:30px}
+.desc{margin:8px 0 0;color:var(--muted);font-size:15px;line-height:1.4;white-space:pre-line}
 .ing .rowbtn{min-height:50px;padding:5px 8px}
 .ing .ic.have{background:var(--ink);color:var(--on-ink)}
 .ing .ic.have svg{width:17px;height:17px;stroke-width:2.6}
 .ing .ic.miss{background:transparent;border:2px dashed var(--faint)}
 .ing .nm.hv{font-weight:500}
+.ing .lbl{margin:10px 10px 0}
+.serv{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--soft);border-radius:999px;padding:6px 6px 6px 20px}
+.serv .lbl{margin:0;font-size:15px;color:var(--ink)}
+.step.sm{padding:0;gap:4px;background:transparent}
+.step.sm .round{width:44px;height:44px;background:var(--bg2)}
+.step.sm .v{font-size:20px;min-width:2.2ch;text-align:center}
+.editor .serv{background:var(--soft)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.steps li{display:flex;gap:12px;align-items:flex-start;background:var(--soft);border-radius:22px;padding:12px 14px 12px 12px}
+.steps .n{width:30px;height:30px;border-radius:50%;background:var(--ic);display:grid;place-items:center;font-weight:700;font-size:14px;flex:none;font-variant-numeric:tabular-nums}
+.steps p{margin:4px 0 0;font-size:16px;line-height:1.4;overflow-wrap:anywhere}
+.steps .tag{display:inline-flex;align-items:center;gap:4px;vertical-align:1px;background:var(--bg2)}
+.steps .tag svg{width:13px;height:13px}
+.srclink{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;color:var(--ink);font-weight:600;font-size:15px;text-underline-offset:3px}
+.srclink svg{width:18px;height:18px;color:var(--muted)}
+/* Dock: Dodaj N do listy + Gotuj, over the bottom of the page */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:7;padding:22px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:linear-gradient(to bottom,transparent,var(--bg) 22px);pointer-events:none}
+.dock .in{max-width:448px;margin:0 auto;display:flex;gap:8px;pointer-events:auto}
+.dock .btn{flex:1;min-height:56px;font-size:16px;padding:0 14px}
+.dock .btn.accent{flex:0 1 auto;padding:0 22px}
+.dock .btn.accent:only-child{flex:1}
+.dock .btn:disabled{opacity:1;color:var(--muted)}
+
+/* ---------------------------------------------------------------- recipe editor (R3) */
+.editor-sheet .sheet-head{position:sticky;top:-10px;z-index:3;background:var(--bg2);margin:-10px 0 0;padding:10px 0 6px}
+.editor-sheet .sheet-head h3{flex:1;min-width:0;font-size:24px}
+.editor-sheet .sheet-head .save{min-height:40px;padding:0 16px;font-size:15px}
+.ephoto{position:relative;overflow:hidden;height:150px;border-radius:22px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;margin-bottom:8px}
+.ephoto svg.big{width:64px;height:64px;stroke-width:1.4}
+.duo.even{grid-template-columns:repeat(2,minmax(0,1fr))}
+.esec{display:flex;flex-direction:column;gap:8px}
+.esec .hint{margin:-4px 0 2px 4px;color:var(--muted)}
+.esec>.btn.mini{align-self:flex-start}
+.erows{display:flex;flex-direction:column;gap:6px}
+.erows:empty{display:none}
+.erow{display:flex;align-items:center;gap:4px;background:var(--soft);border-radius:22px;padding:4px;touch-action:pan-y}
+.erow .handle{width:36px;height:44px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;border-radius:14px;flex:none;touch-action:none;cursor:grab;padding:0}
+.erow .handle svg{stroke-width:3.2}
+.erow .fld{height:44px;background:var(--bg2);padding:0 14px;font-size:16px;min-width:0}
+.erow>.fld{flex:1}
+.erow .fld.qty{flex:0 0 92px;padding:0 10px;text-align:center}
+.erow .round{width:40px;height:40px;background:transparent;color:var(--muted)}
+.erow.sec{background:transparent;box-shadow:inset 0 0 0 1.5px var(--line)}
+.erow.sec .fld{font-weight:600;background:transparent}
+.erow.drag{position:relative;z-index:2;background:var(--bg2);box-shadow:0 0 0 1.5px var(--line),0 10px 28px rgba(0,0,0,.16);transition:none}
+.erow.drag .handle{cursor:grabbing;color:var(--ink)}
+.erow.shift{transition:transform .18s var(--ease-out)}
+.estep{flex-direction:column;align-items:stretch;gap:4px;padding:4px 4px 6px}
+.estep .top{display:flex;align-items:center;gap:4px}
+.estep .n{flex:1;font-size:14px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.etimer{display:flex;align-items:center;gap:4px;height:40px;border-radius:999px;background:var(--bg2);padding:0 12px 0 10px;color:var(--muted);font-size:14px;font-weight:600}
+.etimer svg{width:16px;height:16px}
+.etimer input{width:3.2ch;border:0;background:transparent;font-size:16px;font-weight:600;color:var(--ink);text-align:right;outline:0;padding:0}
+.etimer:focus-within{box-shadow:0 0 0 2px var(--ink)}
+.fld.area{height:auto;min-height:72px;border-radius:18px;padding:12px 14px;line-height:1.4;resize:none;overflow:hidden;display:block;width:100%}
+
+/* ---------------------------------------------------------------- cooking mode (R4) */
+.cook{display:flex;flex-direction:column;gap:16px;min-height:calc(100svh - 150px - env(safe-area-inset-top,0px))}
+.cook-top{display:flex;align-items:center;gap:12px}
+.cook-head{flex:1;min-width:0}
+.cook-head .eyebrow{font-size:15px;color:var(--ink);font-weight:600}
+.cook-name{font-size:13px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wake{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--soft);border-radius:999px;padding:6px 10px 6px 8px;flex:none}
+.wake svg{width:15px;height:15px}
+.segs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px}
+.segs button{height:24px;border:0;padding:0;background:transparent;position:relative}
+.segs button::before{content:"";position:absolute;left:0;right:0;top:9px;height:6px;border-radius:3px;background:var(--line);transition:background .25s}
+.segs button.done::before{background:var(--ink)}
+.segs button.now::before{background:var(--accent);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.pill.other{border:0;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.pill.other.ring{background:var(--accent);color:var(--on-accent)}
+.cook-body{display:flex;flex-direction:column;gap:16px;touch-action:pan-y}
+.cook-text{font-size:31px;line-height:1.18;font-weight:500;letter-spacing:-.02em;margin:6px 0 0;overflow-wrap:anywhere;text-wrap:pretty}
+@media (max-width:340px){.cook-text{font-size:27px}}
+.timer{display:flex;align-items:center;gap:12px;background:var(--soft);border-radius:999px;padding:8px 8px 8px 20px}
+.timer>svg{width:24px;height:24px;color:var(--muted)}
+.timer .tv{flex:1;font-size:34px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.timer .link{min-height:44px}
+.timer.on{background:var(--ink);color:var(--on-ink)}
+.timer.on>svg{color:var(--on-ink)}
+.timer.end{background:var(--accent);color:var(--on-accent)}
+.timer.end>svg{color:var(--on-accent)}
+.round.big{width:56px;height:56px;background:var(--bg2);color:var(--ink)}
+.round.big svg{width:24px;height:24px}
+.timer.on .round.big{background:var(--accent);color:var(--on-accent)}
+.cook-nav{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;gap:8px;max-width:480px;margin:0 auto;padding:22px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:linear-gradient(to bottom,transparent,var(--bg) 22px)}
+.cook-nav .btn{flex:1;min-height:64px;font-size:18px}
+.cook-nav .btn.black{flex:1.4}
+.cook-nav .btn:disabled{opacity:.35}
 
 /* ---------------------------------------------------------------- swatches */
 .swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:8px 10px 10px}
@@ -341,8 +434,8 @@ body.no-tabbar .tabbar nav,body.typing .tabbar nav{pointer-events:none}
 body.sheet-open{overflow:hidden}
 /* A text field has focus: the on-screen keyboard (about 45% of the screen) would cover a
    bottom-aligned sheet, so the sheet moves to the top half. Pure CSS, no viewport measuring. */
-.scrim:has(input:not([type="date"]):focus,textarea:focus){align-items:flex-start;padding-top:calc(8px + env(safe-area-inset-top,0px))}
-.scrim:has(input:not([type="date"]):focus,textarea:focus) .sheet{max-height:calc(50svh - 44px);height:auto;border-radius:24px;animation:none}
+.scrim:has(input:not([type="date"],[type="file"]):focus,textarea:focus){align-items:flex-start;padding-top:calc(8px + env(safe-area-inset-top,0px))}
+.scrim:has(input:not([type="date"],[type="file"]):focus,textarea:focus) .sheet{max-height:calc(50svh - 44px);height:auto;border-radius:24px;animation:none}
 
 /* ---------------------------------------------------------------- toast */
 .toast{position:fixed;left:50%;bottom:calc(var(--tabbar-h) + 30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--on-ink);border-radius:999px;padding:6px 6px 6px 18px;min-height:48px;font-size:14px;font-weight:600;max-width:calc(100% - 32px);width:max-content;display:flex;align-items:center;gap:12px}

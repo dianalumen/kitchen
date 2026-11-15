@@ -27,6 +27,12 @@ const PATHS = {
   book: "M4 19V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0-2 2 2 2 0 0 0 2 2h14M9 7h7",
   cart: "M3 4h2l2.4 11h10.8L21 7H6.2M9 20h.01M18 20h.01",
   play: "M7 4l13 8-13 8z",
+  pause: "M8 5v14M16 5v14",
+  timer: "M12 8v5l3 2M9 2h6M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16z",
+  camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+  sun: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
+  link: "M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1",
+  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M16 4a3.5 3.5 0 0 1 0 7M18 14c2.5.6 4 2.8 4 6",
   bowl: "M3 11h18a9 9 0 0 1-18 0zM8 7c0-1.5 1.5-2 1.5-3.5M12.5 7c0-1.5 1.5-2 1.5-3.5M15 2l6 7",
   pot: "M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM2 10h20M9 6c0-1 1-2 1-3M14 6c0-1 1-2 1-3",
   home: "M4 11l8-7 8 7v9H4zM10 20v-6h4v6",
@@ -71,20 +77,47 @@ export function categoryGlyph(name) {
 }
 
 // ---------------------------------------------------------------------------
+// Keyed reconciling: sync(parent, [{ key, html, sig?, after? }]) brings parent's children in line
+// with the items. Elements whose signature is unchanged stay as they are (no repaint, no lost
+// animation), new ones are created, extra ones removed. Every item's html carries data-k="key".
+// ---------------------------------------------------------------------------
+export const mk = (html) => { const tpl = document.createElement("template"); tpl.innerHTML = html.trim(); return tpl.content.firstElementChild; };
+
+export function sync(parent, items) {
+  const have = new Map();
+  for (const c of parent.children) have.set(c.dataset.k, c);
+  let prev = null;
+  for (const it of items) {
+    const sig = it.sig ?? it.html;
+    let el = have.get(it.key);
+    have.delete(it.key);
+    if (!el) { el = mk(it.html); el._s = sig; }
+    else if (el._s !== sig) { const n = mk(it.html); n._s = sig; el.replaceWith(n); el = n; }
+    const want = prev ? prev.nextElementSibling : parent.firstElementChild;
+    if (el !== want) parent.insertBefore(el, want);
+    prev = el;
+    if (it.after) it.after(el);
+  }
+  for (const el of have.values()) el.remove();
+}
+
+// ---------------------------------------------------------------------------
 // Bottom sheet: openSheet({ title, body, tall, onMount }) → close()
 // One sheet at a time; Escape and a tap on the scrim close it.
 // ---------------------------------------------------------------------------
 let current = null;
 
-export function openSheet({ title, body, tall = false, onMount, onClose, label }) {
+// headHtml: extra buttons in the sheet head (before the close button). sticky: a tap on the scrim
+// does not close it (long forms such as the recipe editor). cls: extra class on the sheet.
+export function openSheet({ title, body, tall = false, onMount, onClose, label, headHtml = "", sticky = false, cls = "" }) {
   if (current) current.close(true, true);
   const opener = document.activeElement;
   const scrim = document.createElement("div");
   scrim.className = "scrim";
   scrim.innerHTML =
-    '<div class="sheet' + (tall ? " tall" : "") + '" role="dialog" aria-modal="true" aria-label="' + esc(label || title || "") + '">' +
+    '<div class="sheet' + (tall ? " tall" : "") + (cls ? " " + cls : "") + '" role="dialog" aria-modal="true" aria-label="' + esc(label || title || "") + '">' +
     '<div class="grab" aria-hidden="true"></div>' +
-    (title ? '<div class="sheet-head"><h3>' + esc(title) + '</h3><button class="round" data-sheet-close aria-label="' + esc(t("close")) + '">' + icon("plus", "x") + "</button></div>" : "") +
+    (title ? '<div class="sheet-head"><h3>' + esc(title) + "</h3>" + headHtml + '<button class="round" data-sheet-close aria-label="' + esc(t("close")) + '">' + icon("plus", "x") + "</button></div>" : "") +
     '<div class="sheet-body">' + body + "</div></div>";
   document.body.appendChild(scrim);
   document.body.classList.add("sheet-open");
@@ -113,7 +146,7 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
   };
   document.addEventListener("keydown", onKey);
   scrim.addEventListener("click", (e) => {
-    if (e.target === scrim || e.target.closest("[data-sheet-close]")) close();
+    if ((e.target === scrim && !sticky) || e.target.closest("[data-sheet-close]")) close();
   });
   current = { scrim, close };
   // Once it has slid in, stop the entry animation so toggling the keyboard layout never replays it.

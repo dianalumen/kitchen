@@ -164,3 +164,12 @@ Recorded per the working rules; each can be changed back if it reads wrong on th
 - **Month picker is two selects** (month, year) because iOS Safari has no `type="month"`; day uses the native date input.
 - **Stepping up clears *Mało*** (you just added some); the switch stays manual otherwise.
 - **The item sheet has no name field**; delete and re-add to rename.
+
+### Deliberate differences in the build (M5)
+- **Dodaj N do listy counts only what the list doesn't have yet.** A missing ingredient already on the list shows "na liście" and is not added again; when every missing item is on the list the button reads "Wszystko na liście" (disabled). With nothing missing the dock shows only *Gotuj*.
+- **The recipe view shows the steps** ("Przygotowanie", numbered, with timer tags) and the source link below the ingredients; the A board showed only ingredients.
+- **Przekąska** is a fourth meal chip, shown only when a recipe has that meal type (the database allows it).
+- **Editor sections are header rows** between ingredients (dragged like ingredients) instead of a section field on every ingredient; the note goes after a comma ("pomidory, w puszce").
+- **Prep and cook time are two fields** ("Przygotowanie, min" and "Gotowanie, min"); cards and the view show the sum.
+- **Cooking mode** shows only the ingredients the step mentions (matched by name); a step without a timer has no timer control. One timer runs at a time and stops when cooking mode is closed.
+- **Servings in the recipe view are not saved**; they reset to the recipe's servings when another recipe is opened.

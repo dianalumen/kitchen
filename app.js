@@ -11,6 +11,7 @@ import { initSettings, openSettings } from "./js/settings.js";
 import "./js/views/list.js";
 import "./js/views/pantry.js";
 import "./js/views/recipes.js";
+import "./js/views/cook.js";
 
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
 
