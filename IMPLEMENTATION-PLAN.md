@@ -14,7 +14,8 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | M3 Shopping list | ✅ done (merged 2026-11-14; [D] shopping trip with both phones done 2026-11-14) |
 | M4 Pantry | ✅ done (merged 2026-11-15 with the phone-test fixes; [D] phone check done 2026-11-15) — one known issue: the iPhone keyboard covers sheet fields, see Known issues |
 | M5 Recipes | ✅ merged 2026-11-15; [D] phone test pending (recipes are empty until the M6 import) |
-| M6–M7 (v1), M8–M9 (v2) | pending |
+| M6 Import | built on branch `m6-import` (script verified against `schema.sql` in a throwaway local Postgres); [D] run the generated SQL once in the SQL Editor |
+| M7 (v1), M8–M9 (v2) | pending |
 
 ### How milestones run
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## M6 · Import from home-app — 2026-11-15
+
+- `tools/import_home_app.py <dump> [--write]`: reads the old backup with `pgdump_read.py` (needs `zstandard`), applies PRODUCT.md §4 and prints a dry-run summary (rows per target table plus samples). With `--write` it generates `supabase/seed/home_app_import.sql` (git-ignored; personal data).
+- Dry run: 11 recipes, 60 recipe ingredients, 155 pantry items (Spiżarnia only), 7 open shopping items, 187 category rules, 12 units, 13 categories used.
+- Old categories map onto the 17 seeded ones (merging the near-duplicates). "Sosy i przyprawy" is split per item into Przyprawy and Oleje i sosy. Duplicate keywords across pantry, fridge and the merged categories keep the first (pantry before fridge). Shopping items get a category from the rules where one matches; a link in the old description becomes the note.
+- The SQL: invite code in one literal at the top, one transaction, one `DO` block; ids derived with `md5(household_id || old id)` and `on conflict do nothing`, categories, units and keywords matched by name, so a second run adds nothing. It ends with a table of rows added and skipped per table.
+- Verified by loading `schema.sql` into a throwaway local Postgres and running the SQL against a household made by `create_household`: all constraints and composite foreign keys pass, second run adds 0 rows, wrong code rolls back with an error.
+- No schema or app change.
+
 ## M5 · Recipes — 2026-11-15
 
 - **R1** `js/views/recipes.js`: 2-column card grid with search (title or ingredient name, instant) and meal-type chips (Wszystkie, Śniadanie, Obiad, Kolacja; Przekąska only when a recipe has it). Card line "Obiad, 30 min, 3/6". Recipes without a photo get the accent tile with a meal-type glyph (cup, pot, bowl, apple). Cards are reconciled by key, so a realtime event repaints one card. Empty and no-results states; + in the header opens the editor.
