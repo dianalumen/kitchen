@@ -103,6 +103,7 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
       if (onClose) onClose(replaced);
     };
     if (instant || reducedMotion()) return done();
+    sheet.style.animation = "";
     scrim.classList.add("closing");
     setTimeout(done, 200);
   };
@@ -115,43 +116,12 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
     if (e.target === scrim || e.target.closest("[data-sheet-close]")) close();
   });
   current = { scrim, close };
-  fitToKeyboard(scrim, sheet);
+  // Once it has slid in, stop the entry animation so toggling the keyboard layout never replays it.
+  setTimeout(() => { if (!closed) sheet.style.animation = "none"; }, 400);
   if (onMount) onMount(sheet, close);
   const first = sheet.querySelector("[autofocus]") || sheet.querySelector("[data-sheet-close]");
   if (first) first.focus({ preventScroll: true });
   return close;
-}
-
-// On phones the on-screen keyboard covers the bottom of the page without resizing it. Follow the
-// visual viewport so the sheet sits above the keyboard, and keep the focused field in view.
-function fitToKeyboard(scrim, sheet) {
-  const vv = window.visualViewport;
-  const field = () => { const a = document.activeElement; return a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.type !== "date" ? a : null; };
-  // While a field is focused the sheet moves to the top of the visible area (above the keyboard)
-  // and gets that area's height, instead of staying glued to the bottom behind the keyboard.
-  const fit = () => {
-    const f = field();
-    scrim.classList.toggle("kbd", !!f);
-    if (!f) { scrim.style.top = scrim.style.height = sheet.style.maxHeight = ""; return; }
-    const top = vv ? vv.offsetTop : 0, h = vv && vv.height > 200 ? vv.height : window.innerHeight * 0.5;
-    if (h < 200) return; // hidden pane: no usable size
-    scrim.style.top = top + "px";
-    scrim.style.height = h + "px";
-    sheet.style.maxHeight = Math.round(h - 16) + "px";
-    // Show the field without moving the sheet itself: scroll only inside the sheet.
-    const fr = f.getBoundingClientRect(), sr = sheet.getBoundingClientRect();
-    if (sheet.scrollHeight <= sheet.clientHeight) sheet.scrollTop = 0;
-    else if (fr.bottom > sr.bottom - 8) sheet.scrollTop += fr.bottom - sr.bottom + 16;
-  };
-  const later = () => [0, 120, 350, 700].forEach((ms) => setTimeout(fit, ms)); // iOS reports the keyboard late
-  sheet.addEventListener("focusin", later);
-  sheet.addEventListener("focusout", () => setTimeout(fit, 80));
-  if (vv) {
-    vv.addEventListener("resize", fit);
-    vv.addEventListener("scroll", fit);
-    new MutationObserver((_, o) => { if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); o.disconnect(); } })
-      .observe(document.body, { childList: true });
-  }
 }
 
 export function closeSheet() { if (current) current.close(); }
