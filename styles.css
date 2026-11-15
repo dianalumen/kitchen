@@ -114,7 +114,7 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
 .btn.danger{background:transparent;color:var(--danger);box-shadow:inset 0 0 0 1.5px var(--danger)}
 .btn.outline{background:transparent;box-shadow:inset 0 0 0 1.5px var(--faint)}
 .btn.wide{width:100%;min-height:54px;font-size:16px}
-.btn.mini{min-height:36px;padding:0 12px;font-size:13px;gap:6px}
+.btn.mini{min-height:44px;padding:0 14px;font-size:14px;gap:6px}
 .btn.mini svg{width:15px;height:15px}
 .link{align-self:center;border:0;background:none;padding:0 8px;min-height:44px;font-size:14px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
 
@@ -241,6 +241,10 @@ button.rowbtn:active{background:var(--bg)}
 .rowbtn .val small{display:block;font-size:12px;color:var(--muted);font-weight:500}
 .rowbtn .chev{width:16px;height:16px;color:var(--muted)}
 .rowbtn .code{font-size:18px;letter-spacing:.04em;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Invite code: the two buttons drop under the code on narrow phones instead of squeezing it. */
+.coderow{flex-wrap:wrap}
+.coderow .nm{min-width:8.5em}
+.coderow .acts{display:flex;gap:8px;margin-left:auto}
 .group .lbl{margin:8px 10px 2px}
 
 
@@ -253,8 +257,8 @@ button.tile:disabled{cursor:default}
 .empty .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
 .empty .acts .btn{background:var(--bg)}
 .empty .acts .btn.black{background:var(--ink)}
-.round.sm{width:36px;height:36px;background:var(--bg)}
-.round.sm svg{width:17px;height:17px}
+.round.sm{width:44px;height:44px;background:var(--bg)}
+.round.sm svg{width:18px;height:18px}
 .subline{margin:-8px 0 0}
 .hint{margin:-4px 0 0 4px;font-size:13px;font-weight:500;min-height:1.35em}
 /* P2: big stepper, switch row, month picker */
@@ -367,9 +371,9 @@ input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
 .cook-name{font-size:13px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wake{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--soft);border-radius:999px;padding:6px 10px 6px 8px;flex:none}
 .wake svg{width:15px;height:15px}
-.segs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px}
-.segs button{height:24px;border:0;padding:0;background:transparent;position:relative}
-.segs button::before{content:"";position:absolute;left:0;right:0;top:9px;height:6px;border-radius:3px;background:var(--line);transition:background .25s}
+.segs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;margin:-10px 0}
+.segs button{height:44px;border:0;padding:0;background:transparent;position:relative}
+.segs button::before{content:"";position:absolute;left:0;right:0;top:19px;height:6px;border-radius:3px;background:var(--line);transition:background .25s}
 .segs button.done::before{background:var(--ink)}
 .segs button.now::before{background:var(--accent);box-shadow:inset 0 0 0 1.5px var(--ink)}
 .pill.other{border:0;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
@@ -395,6 +399,7 @@ input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
 
 /* ---------------------------------------------------------------- swatches */
 .swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:8px 10px 10px}
+@media (max-width:360px){.swatches{gap:6px;padding:8px 4px 10px}}
 .swatches button{aspect-ratio:1;max-width:100%;border:0;border-radius:50%;background:var(--c);display:grid;place-items:center;color:#141414;padding:0;transition:transform .2s var(--ease-spring),box-shadow .2s}
 .swatches button:active{transform:scale(.9)}
 .swatches button svg{width:18px;height:18px;stroke-width:2.6;transform:scale(0);transition:transform .3s cubic-bezier(.3,1.8,.5,1)}

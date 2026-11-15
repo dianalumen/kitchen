@@ -41,9 +41,9 @@ function body() {
   return (
     '<div class="group">' +
     '<button type="button" class="rowbtn" data-set="rename"><span class="ic">' + icon("home") + '</span><span class="nm">' + esc(hh.name) + '<span class="sub">' + esc(t("set_household_name")) + "</span></span>" + icon("right", "chev") + "</button>" +
-    '<div class="rowbtn"><span class="ic">' + icon("key") + '</span><span class="nm"><span class="code">' + esc(formatCode(hh.code)) + '</span><span class="sub">' + esc(t("set_invite_code")) + "</span></span>" +
-    '<button type="button" class="round" data-set="new-code" aria-label="' + esc(t("set_new_code")) + '" style="width:36px;height:36px;background:var(--bg)">' + icon("refresh") + "</button>" +
-    '<button type="button" class="btn black mini" data-set="share">' + icon("share") + esc(t("set_share")) + "</button></div>" +
+    '<div class="rowbtn coderow"><span class="ic">' + icon("key") + '</span><span class="nm"><span class="code">' + esc(formatCode(hh.code)) + '</span><span class="sub">' + esc(t("set_invite_code")) + "</span></span>" +
+    '<span class="acts"><button type="button" class="round sm" data-set="new-code" aria-label="' + esc(t("set_new_code")) + '">' + icon("refresh") + "</button>" +
+    '<button type="button" class="btn black mini" data-set="share">' + icon("share") + esc(t("set_share")) + "</button></span></div>" +
     "</div>" +
     '<div class="group" aria-label="' + esc(t("set_members")) + '">' +
     members.map((m) => '<div class="rowbtn"><span class="ic" aria-hidden="true">' + esc(memberName(m).charAt(0)) + '</span><span class="nm">' + esc(memberName(m)) +
