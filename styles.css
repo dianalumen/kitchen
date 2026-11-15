@@ -339,6 +339,9 @@ body.no-tabbar .tabbar nav,body.typing .tabbar nav{pointer-events:none}
 .sheet .acts .btn{flex:1}
 .sheet .group .rowbtn .ic{background:var(--ic)}
 body.sheet-open{overflow:hidden}
+/* Field focused: sheet sits at the top of the area above the keyboard */
+.scrim.kbd{align-items:flex-start;padding-top:8px;animation:none}
+.scrim.kbd .sheet{border-radius:24px;animation:none}
 
 /* ---------------------------------------------------------------- toast */
 .toast{position:fixed;left:50%;bottom:calc(var(--tabbar-h) + 30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--on-ink);border-radius:999px;padding:6px 6px 6px 18px;min-height:48px;font-size:14px;font-weight:600;max-width:calc(100% - 32px);width:max-content;display:flex;align-items:center;gap:12px}

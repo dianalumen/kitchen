@@ -126,25 +126,29 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
 // visual viewport so the sheet sits above the keyboard, and keep the focused field in view.
 function fitToKeyboard(scrim, sheet) {
   const vv = window.visualViewport;
-  if (!vv) return;
-  // Space taken by the keyboard: the layout viewport keeps its size, the visual one shrinks.
+  const field = () => { const a = document.activeElement; return a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.type !== "date" ? a : null; };
+  // While a field is focused the sheet moves to the top of the visible area (above the keyboard)
+  // and gets that area's height, instead of staying glued to the bottom behind the keyboard.
   const fit = () => {
-    if (vv.height < 200) return; // unreliable (hidden pane): keep the CSS defaults
-    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-    scrim.style.paddingBottom = kb + "px";
-    sheet.style.maxHeight = Math.round(vv.height * 0.94) + "px";
-    sheet.style.height = sheet.classList.contains("tall") ? sheet.style.maxHeight : "";
-    const a = document.activeElement;
-    if (kb && a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) a.scrollIntoView({ block: "center" });
+    const f = field();
+    scrim.classList.toggle("kbd", !!f);
+    if (!f) { scrim.style.top = scrim.style.height = sheet.style.maxHeight = ""; return; }
+    const top = vv ? vv.offsetTop : 0, h = vv && vv.height > 200 ? vv.height : window.innerHeight * 0.5;
+    if (h < 200) return; // hidden pane: no usable size
+    scrim.style.top = top + "px";
+    scrim.style.height = h + "px";
+    sheet.style.maxHeight = Math.round(h - 16) + "px";
+    f.scrollIntoView({ block: "center" });
   };
-  const later = () => [60, 250, 500, 900].forEach((ms) => setTimeout(fit, ms)); // iOS reports the keyboard late
-  vv.addEventListener("resize", fit);
-  vv.addEventListener("scroll", fit);
+  const later = () => [0, 120, 350, 700].forEach((ms) => setTimeout(fit, ms)); // iOS reports the keyboard late
   sheet.addEventListener("focusin", later);
-  sheet.addEventListener("focusout", later);
-  new MutationObserver((_, o) => { if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); o.disconnect(); } })
-    .observe(document.body, { childList: true });
-  fit();
+  sheet.addEventListener("focusout", () => setTimeout(fit, 80));
+  if (vv) {
+    vv.addEventListener("resize", fit);
+    vv.addEventListener("scroll", fit);
+    new MutationObserver((_, o) => { if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); o.disconnect(); } })
+      .observe(document.body, { childList: true });
+  }
 }
 
 export function closeSheet() { if (current) current.close(); }
