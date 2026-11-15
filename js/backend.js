@@ -11,6 +11,10 @@
 //   newCode()                      → new invite code
 //   moveCheckedToPantry()          → number moved
 //   addRecipeToList(recipeId, servings) → { added, merged, skipped }
+//   saveRecipe({ recipe, ingredients, steps, removeIngredients, removeSteps })
+//                                  → { recipe, ingredients, steps } as saved. Upserts, so a retry
+//                                    after a lost connection is safe; the recipe goes first (FK).
+//   uploadImage(path, blob) / removeImage(path) / imageUrl(path) → recipe photos in Storage
 //   subscribe(householdId, onRow, onStatus) / unsubscribe()
 //   signOut()
 // sbBackend also has auth: getSession, onAuth, signIn, signUp, sendReset, setPassword.
@@ -33,6 +37,7 @@ export const TABLES = {
 const camel = (k) => k.replace(/_([a-z])/g, (m, c) => c.toUpperCase());
 const snake = (k) => k.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
 const NUMERIC = new Set(["amount"]);
+export const IMAGE_BUCKET = "recipe-images";
 // Never written by the client: generated columns, defaults and trigger-maintained columns.
 const READ_ONLY = new Set(["nameKey", "keywordKey", "householdId", "updatedAt", "checkedAt"]);
 
@@ -127,6 +132,24 @@ export function sbBackend(sb) {
     async addRecipeToList(recipeId, servings) {
       return await must(sb.rpc("add_recipe_to_list", { p_recipe_id: recipeId, p_servings: servings ?? null }));
     },
+
+    async saveRecipe({ recipe = null, ingredients = [], steps = [], removeIngredients = [], removeSteps = [] }) {
+      const out = { recipe: null, ingredients: [], steps: [] };
+      if (recipe) out.recipe = fromRow(await must(sb.from("recipes").upsert(toRow(recipe)).select().single()));
+      if (removeIngredients.length) await must(sb.from("recipe_ingredients").delete().in("id", removeIngredients));
+      if (removeSteps.length) await must(sb.from("recipe_steps").delete().in("id", removeSteps));
+      if (ingredients.length) out.ingredients = (await must(sb.from("recipe_ingredients").upsert(ingredients.map(toRow)).select())).map(fromRow);
+      if (steps.length) out.steps = (await must(sb.from("recipe_steps").upsert(steps.map(toRow)).select())).map(fromRow);
+      return out;
+    },
+
+    // Photos live in the household's folder: "<household_id>/<file>" (schema.sql §5).
+    async uploadImage(path, blob) {
+      await must(sb.storage.from(IMAGE_BUCKET).upload(path, blob, { contentType: blob.type || "image/jpeg", cacheControl: "31536000", upsert: true }));
+      return path;
+    },
+    async removeImage(path) { await must(sb.storage.from(IMAGE_BUCKET).remove([path])); return true; },
+    imageUrl(path) { return path ? sb.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl : null; },
 
     // One channel per household, one listener per table (like 3d-print). Realtime applies RLS
     // per subscriber, so only this household's rows arrive (DELETE events carry only the id).

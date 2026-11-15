@@ -152,7 +152,7 @@ function sampleData() {
     });
   };
   recipe("Ryż z krewetkami i cukinią", "lunch", 2, 10, 20, [
-    ["Ryż jaśminowy", 150, "g"], ["Krewetki", 200, "g"], ["Cukinia", 1, "szt"], ["Czosnek", 2, "ząbki"],
+    ["Ryż jaśminowy", 150, "g"], ["Krewetki", 200, "g"], ["Cukinia", 1, "szt"], ["Czosnek", 2, "ząbek"],
     ["Sos sojowy", 2, "łyżka"], ["Cebula dymka", 2, "szt"]
   ], [
     ["Ugotuj ryż według przepisu na opakowaniu.", 15],
@@ -186,11 +186,40 @@ function sampleData() {
     "Posyp fetą i podawaj z chlebem."
   ]);
   recipe("Spaghetti aglio e olio", "dinner", 2, 5, 12, [
-    ["Makaron spaghetti", 200, "g"], ["Oliwa z oliwek", 4, "łyżka"], ["Czosnek", 4, "ząbki"], ["Natka pietruszki", 1, "pęczek"]
+    ["Makaron spaghetti", 200, "g"], ["Oliwa z oliwek", 4, "łyżka"], ["Czosnek", 4, "ząbek"], ["Natka pietruszki", 1, "pęczek"]
   ], [
     ["Ugotuj makaron al dente.", 9],
     "Na oliwie podgrzej plasterki czosnku, aż się zezłocą.",
     "Wymieszaj makaron z oliwą i natką."
+  ]);
+
+  recipe("Naleśniki z twarogiem", "breakfast", 4, 15, 20, [
+    ["Mąka pszenna", 1, "szklanka", null, "Ciasto"], ["Mleko bez laktozy 3,2%", 300, "ml", null, "Ciasto"], ["Jajka", 2, "szt", null, "Ciasto"],
+    ["Olej rzepakowy", 1, "łyżka", null, "Ciasto"], ["Sól", 1, "szczypta", null, "Ciasto"],
+    ["Twaróg", 250, "g", null, "Nadzienie"], ["Cukier puder", 2, "łyżka", null, "Nadzienie"], ["Cytryny", 0.5, "szt", "skórka", "Nadzienie"]
+  ], [
+    ["Zmiksuj mąkę, mleko, jajka, olej i sól. Odstaw ciasto.", 10],
+    "Rozgrzej patelnię i smaż cienkie naleśniki z obu stron.",
+    "Wymieszaj twaróg z cukrem pudrem i skórką z cytryny.",
+    "Posmaruj naleśniki nadzieniem i zwiń w rulony."
+  ]);
+  recipe("Zupa krem z dyni", "lunch", 4, 15, 30, [
+    ["Dynia hokkaido", 1, "kg"], ["Cebula", 1, "szt"], ["Czosnek", 2, "ząbek"], ["Mleko kokosowe", 400, "ml"],
+    ["Bulion warzywny", 1, "l"], ["Curry", 1, "łyżeczka"], ["Pestki dyni", 30, "g", "do podania"]
+  ], [
+    "Pokrój dynię w kostkę, cebulę i czosnek posiekaj.",
+    ["Zeszklij cebulę z czosnkiem i curry.", 4],
+    ["Dodaj dynię i bulion, gotuj do miękkości.", 20],
+    "Wlej mleko kokosowe i zmiksuj na gładki krem.",
+    "Podawaj z pestkami dyni."
+  ]);
+  recipe("Hummus", "snack", 4, 10, 0, [
+    ["Ciecierzyca", 1, "szt", "w puszce"], ["Tahini", 2, "łyżka"], ["Cytryny", 1, "szt", "sok"], ["Czosnek", 1, "ząbek"],
+    ["Oliwa z oliwek", 3, "łyżka"], ["Kmin rzymski", 0.5, "łyżeczka"]
+  ], [
+    "Odcedź ciecierzycę, zachowaj trochę zalewy.",
+    "Zmiksuj wszystko na gładko, dolewając zalewy do konsystencji.",
+    "Przełóż do miseczki i polej oliwą."
   ]);
 
   return {
@@ -208,6 +237,7 @@ export const DEMO_USER = { id: "demo-you", email: "ala@przyklad.pl" };
 
 export function demoBackend() {
   const data = sampleData();
+  const images = new Map(); // path → object URL
   const clone = (x) => JSON.parse(JSON.stringify(x));
   const wait = (ms = 120) => new Promise((r) => setTimeout(r, ms));
   const stampNow = () => new Date().toISOString();
@@ -309,7 +339,54 @@ export function demoBackend() {
       bought.forEach((s) => emit("shopping", "DELETE", null, { id: s.id }));
       return bought.length;
     },
-    async addRecipeToList() { await wait(); return { added: 0, merged: 0, skipped: 0 }; },
+    // Same rules as add_recipe_to_list in schema.sql (the app adds missing items through
+    // addToList() instead; this keeps the demo backend's API complete).
+    async addRecipeToList(recipeId, servings) {
+      await wait();
+      net();
+      const r = find("recipes", recipeId);
+      if (!r) throw new Error("NOT_FOUND");
+      if (servings != null && (servings < 1 || servings > 100)) throw new Error("BAD_SERVINGS");
+      const factor = (servings ?? r.servings) / r.servings;
+      let added = 0, merged = 0, skipped = 0;
+      const ings = data.ingredients.filter((i) => i.recipeId === recipeId).sort((a, b) => a.position - b.position);
+      for (const ing of ings) {
+        if (data.pantry.some((p) => p.nameKey === ing.nameKey && !p.low && (p.amount == null || p.amount > 0))) { skipped++; continue; }
+        const amount = ing.amount == null ? null : Math.round(ing.amount * factor * 100) / 100 || null;
+        const open = data.shopping.filter((x) => x.nameKey === ing.nameKey && !x.checked)
+          .sort((a, b) => (b.unit === ing.unit) - (a.unit === ing.unit))[0];
+        if (open) {
+          if (amount != null && open.amount != null && open.unit === ing.unit) {
+            Object.assign(open, { amount: open.amount + amount, updatedAt: stampNow() });
+            emit("shopping", "UPDATE", clone(open), null);
+          }
+          merged++;
+        } else {
+          const p = data.pantry.find((x) => x.nameKey === ing.nameKey && x.categoryId);
+          const row = insertOne("shopping", { name: ing.name.trim(), amount, unit: ing.unit, categoryId: p ? p.categoryId : null,
+            checked: false, note: null, recipeId, createdBy: "demo-you" });
+          emit("shopping", "INSERT", clone(row), null);
+          added++;
+        }
+      }
+      return { added, merged, skipped };
+    },
+    async saveRecipe({ recipe = null, ingredients = [], steps = [], removeIngredients = [], removeSteps = [] }) {
+      await wait(150);
+      net();
+      const upsert = (coll, row) => (find(coll, row.id) ? updateOne(coll, row.id, row) : insertOne(coll, row));
+      const out = { recipe: null, ingredients: [], steps: [] };
+      if (recipe) out.recipe = clone(upsert("recipes", recipe));
+      removeIngredients.forEach((id) => removeOne("ingredients", id));
+      removeSteps.forEach((id) => removeOne("steps", id));
+      out.ingredients = ingredients.map((r) => clone(upsert("ingredients", r)));
+      out.steps = steps.map((r) => clone(upsert("steps", r)));
+      return out;
+    },
+    // Photos stay in this tab: the blob is kept as an object URL under its path.
+    async uploadImage(path, blob) { await wait(300); net(); images.set(path, URL.createObjectURL(blob)); return path; },
+    async removeImage(path) { await wait(80); const u = images.get(path); if (u) URL.revokeObjectURL(u); images.delete(path); return true; },
+    imageUrl(path) { return images.get(path) || null; },
     subscribe(householdId, onRow, onStatus) { emit = onRow; setTimeout(() => onStatus(true), 0); },
     unsubscribe() {},
     async signOut() {}

@@ -1,6 +1,6 @@
 // App shell: view router, floating tab bar, shared header, offline pill and demo banner.
 //
-// A view is { tab, mount(root), update(root, changes) }: mount builds the screen once when the
+// A view is { tab, mount(root), update(root, changes), unmount?(root) }: mount builds the screen once when the
 // route opens, update refreshes only what the changes touch (so typing in a field is never
 // interrupted by a realtime event). `tab: false` hides the tab bar (recipe detail, cooking mode).
 import { t } from "./i18n.js";
@@ -48,6 +48,7 @@ function render(direction) {
   current = { name: r.name, params: r.params, view };
   if (TABS.some((x) => x.name === r.name)) store("tab", r.name);
   const root = $("view");
+  if (prev && prev.view.unmount) prev.view.unmount(root);
   // Into a detail screen slides forward, back out of it slides back, between tabs fades up.
   if (!direction && prev && prev.name !== r.name) {
     direction = view.tab === false && prev.view.tab !== false ? "fwd" : prev.view.tab === false && view.tab !== false ? "bwd" : "enter";
