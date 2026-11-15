@@ -138,7 +138,10 @@ function fitToKeyboard(scrim, sheet) {
     scrim.style.top = top + "px";
     scrim.style.height = h + "px";
     sheet.style.maxHeight = Math.round(h - 16) + "px";
-    f.scrollIntoView({ block: "center" });
+    // Show the field without moving the sheet itself: scroll only inside the sheet.
+    const fr = f.getBoundingClientRect(), sr = sheet.getBoundingClientRect();
+    if (sheet.scrollHeight <= sheet.clientHeight) sheet.scrollTop = 0;
+    else if (fr.bottom > sr.bottom - 8) sheet.scrollTop += fr.bottom - sr.bottom + 16;
   };
   const later = () => [0, 120, 350, 700].forEach((ms) => setTimeout(fit, ms)); // iOS reports the keyboard late
   sheet.addEventListener("focusin", later);
