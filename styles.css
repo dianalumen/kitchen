@@ -270,6 +270,11 @@ button.tile:disabled{cursor:default}
 .tgl[aria-checked="true"] .sw i{transform:translateX(20px)}
 .duo{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px}
 select.fld{appearance:none;-webkit-appearance:none;background-image:none;padding:0 14px 0 18px;text-overflow:ellipsis}
+.datefld{position:relative;display:flex;align-items:center;gap:10px;cursor:pointer}
+.datefld span{flex:1}
+.datefld .ph{color:var(--muted)}
+.datefld .chev{width:18px;height:18px;color:var(--muted)}
+.datefld input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0}
 input.fld[type="date"]{appearance:none;-webkit-appearance:none;min-width:0;text-align:left}
 input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
 .sheet .seg{margin:0}

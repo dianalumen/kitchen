@@ -215,7 +215,7 @@ export default {
   pantry_empty_tip: "Ilość wpisz po nazwie: kuskus 500 g",
   pantry_add: "Dodaj do spiżarni",
   pantry_add_tip: "Ilość wpisz po nazwie: kuskus 500 g",
-  pantry_to_list: "Dodaj do listy",
+  pantry_to_list: "Na listę zakupów",
   pantry_added: "„{name}” w spiżarni",
   pantry_more: "Dodano do „{name}”",
   pantry_already: "„{name}” już jest w spiżarni",
@@ -226,6 +226,7 @@ export default {
   pantry_day: "Dzień",
   pantry_month: "Miesiąc",
   pantry_year: "Rok",
+  pantry_pick_day: "Wybierz datę",
   pantry_no_expiry: "Bez terminu",
 
   // Recipes (placeholder until M5)

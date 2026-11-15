@@ -115,10 +115,32 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
     if (e.target === scrim || e.target.closest("[data-sheet-close]")) close();
   });
   current = { scrim, close };
+  fitToKeyboard(scrim, sheet);
   if (onMount) onMount(sheet, close);
   const first = sheet.querySelector("[autofocus]") || sheet.querySelector("[data-sheet-close]");
   if (first) first.focus({ preventScroll: true });
   return close;
+}
+
+// On phones the on-screen keyboard covers the bottom of the page without resizing it. Follow the
+// visual viewport so the sheet sits above the keyboard, and keep the focused field in view.
+function fitToKeyboard(scrim, sheet) {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const fit = () => {
+    if (vv.height < 200) return; // unreliable (hidden pane): keep the CSS defaults
+    scrim.style.top = vv.offsetTop + "px";
+    scrim.style.height = vv.height + "px";
+    sheet.style.maxHeight = Math.round(vv.height * 0.92) + "px";
+    const a = document.activeElement;
+    if (a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) a.scrollIntoView({ block: "center" });
+  };
+  vv.addEventListener("resize", fit);
+  vv.addEventListener("scroll", fit);
+  sheet.addEventListener("focusin", () => setTimeout(fit, 300));
+  new MutationObserver((_, o) => { if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); o.disconnect(); } })
+    .observe(document.body, { childList: true });
+  fit();
 }
 
 export function closeSheet() { if (current) current.close(); }

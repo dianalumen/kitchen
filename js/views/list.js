@@ -7,7 +7,7 @@
 // or steals focus.
 import { t, fmtAmount } from "../i18n.js";
 import { esc, icon, categoryGlyph, openSheet, toast, store, reducedMotion } from "../ui.js";
-import { state, insertRow, updateRow, deleteRow, deleteRows, optimistic, putLocal, dropLocal, byId, getBackend } from "../store.js";
+import { state, insertRow, updateRow, deleteRow, deleteRows, optimistic, putLocal, dropLocal, byId, getBackend, refresh } from "../store.js";
 import { header, setEyebrow, settingsButton, registerView, go } from "../shell.js";
 import { parseItem, matchRule, suggest, nameKey, toNumber } from "../parse.js";
 import { catById, otherCat, catName, unitCodes, unitChipsHtml, bindUnitChips, categoryFieldHtml, bindCategoryField } from "../pickers.js";
@@ -425,6 +425,7 @@ async function moveToPantry() {
     rollback: () => bought.forEach((s) => putLocal("shopping", s))
   });
   if (res == null) return;
+  refresh(); // pantry rows come from the server; don't depend on realtime alone
   const n = typeof res === "number" && res > 0 ? res : bought.length;
   toast(t("list_moved", { n }));
 }

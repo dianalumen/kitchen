@@ -34,6 +34,8 @@ let backend = null;
 let reload = () => {};
 export function useBackend(b, reloadFn) { backend = b; reload = reloadFn || reload; }
 export const getBackend = () => backend;
+// Full reload of server data (used after an RPC that changes other tables, e.g. move to pantry).
+export const refresh = () => reload();
 
 // ---------------------------------------------------------------------------
 // Change notification: views re-render once per frame for any batch of changes.

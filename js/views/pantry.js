@@ -390,7 +390,10 @@ function openItem(id) {
         '<select class="fld" data-year aria-label="' + esc(t("pantry_year")) + '"><option value="">' + esc(t("pantry_year")) + "</option>" +
         years.sort((a, b) => a - b).map((yy) => '<option value="' + yy + '"' + (y === yy ? " selected" : "") + ">" + yy + "</option>").join("") + "</select></div>";
     }
-    return '<input class="fld" type="date" data-day aria-label="' + esc(t("pantry_day")) + '" value="' + esc(c.bestBefore ? String(c.bestBefore).slice(0, 10) : "") + '">';
+    // A label over a transparent date input: iOS shows an empty date input as a blank box.
+    const v = c.bestBefore ? String(c.bestBefore).slice(0, 10) : "";
+    return '<label class="fld datefld"><span' + (v ? "" : ' class="ph"') + ">" + esc(v ? fmtDay(v) + " " + v.slice(0, 4) : t("pantry_pick_day")) + "</span>" + icon("down", "chev") +
+      '<input type="date" data-day aria-label="' + esc(t("pantry_day")) + '" value="' + esc(v) + '"></label>';
   };
   const expiryHtml = () => {
     const c = cur();
