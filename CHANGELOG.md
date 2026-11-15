@@ -10,6 +10,7 @@
 - Shared code: `js/pickers.js` (category/unit helpers, unit chips, category field) now used by the list's edit sheet and the pantry; `addToList()` in `js/views/list.js` is the one place that merges into the shopping list.
 - `?demo`: 57 pantry items with month-precision dates, expired, due today, low and zero amounts; moving bought items merges "Masło" into the pantry row.
 - `sw.js` cache `kitchen-v3` with `js/pickers.js`.
+- Known issue, postponed: the iPhone keyboard still covers sheet fields (see IMPLEMENTATION-PLAN, Known issues).
 
 ## M3 · Shopping list — 2026-11-14
 

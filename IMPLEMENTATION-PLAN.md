@@ -179,3 +179,9 @@ Every milestone is one branch and one pull request into `main`. Merging to `main
 - Any schema change: `schema.sql` (idempotent) + `tests.sql` rerun, per the checklist in TECH-GUIDELINES §13.
 - Bump the service-worker cache version when shipped files change.
 - After each milestone, a short note in `CHANGELOG.md`.
+
+---
+
+## Known issues (open)
+
+- **Keyboard covers sheet fields on iPhone** (found in M4, 2026-11-15). In bottom sheets (pantry add, item note, list edit) the on-screen keyboard hides the focused field. Tried without success: sizing the sheet to `visualViewport`, bottom padding by keyboard height, anchoring the sheet to the top of the visual viewport while a field is focused (`fitToKeyboard()` in `js/ui.js`). Not reproducible in the desktop browser; needs a debug pass on a real device (log `innerHeight`, `visualViewport.height/offsetTop` on focus, home-screen app vs Safari). Plan: fix in M7 or earlier as its own small branch.
