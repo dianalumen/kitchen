@@ -418,7 +418,8 @@ function openItem(id) {
       "<div>" + categoryFieldHtml(catById(it.categoryId) ? it.categoryId : null) + "</div>" +
       '<div><label class="lbl" for="p-note">' + esc(t("list_note")) + '</label><input class="fld" id="p-note" name="note" maxlength="500" autocomplete="off" placeholder="' + esc(t("list_note_ph")) + '" value="' + esc(it.note || "") + '"></div>' +
       '<div class="acts"><button type="button" class="btn danger" data-delete>' + esc(t("list_delete")) + '</button>' +
-      '<button type="button" class="btn black" data-tolist>' + icon("cart") + esc(t("pantry_to_list")) + "</button></div></div>",
+      '<button type="button" class="btn" data-tolist>' + icon("cart") + esc(t("pantry_to_list")) + "</button></div>" +
+      '<button type="button" class="btn black wide" data-done>' + esc(t("done")) + "</button></div>",
     onMount(sheet, close) {
       const stepper = sheet.querySelector("[data-stepper]");
       const expiryBox = sheet.querySelector("[data-expiry]");
@@ -479,6 +480,7 @@ function openItem(id) {
       bindCategoryField(sheet, catById(it.categoryId) ? it.categoryId : null, (cid) => set({ categoryId: cid }));
       sheet.querySelector("[name=note]").addEventListener("input", (e) => set({ note: e.target.value.trim() || null }));
 
+      sheet.querySelector("[data-done]").addEventListener("click", () => close());
       sheet.querySelector("[data-tolist]").addEventListener("click", () => {
         const c = cur();
         close();

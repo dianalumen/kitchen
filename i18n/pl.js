@@ -17,6 +17,7 @@ export default {
   settings: "Ustawienia",
   close: "Zamknij",
   save: "Zapisz",
+  done: "Gotowe",
   cancel: "Anuluj",
   undo: "Cofnij",
   back: "Wstecz",

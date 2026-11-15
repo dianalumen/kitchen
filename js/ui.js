@@ -127,17 +127,21 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label }
 function fitToKeyboard(scrim, sheet) {
   const vv = window.visualViewport;
   if (!vv) return;
+  // Space taken by the keyboard: the layout viewport keeps its size, the visual one shrinks.
   const fit = () => {
     if (vv.height < 200) return; // unreliable (hidden pane): keep the CSS defaults
-    scrim.style.top = vv.offsetTop + "px";
-    scrim.style.height = vv.height + "px";
-    sheet.style.maxHeight = Math.round(vv.height * 0.92) + "px";
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    scrim.style.paddingBottom = kb + "px";
+    sheet.style.maxHeight = Math.round(vv.height * 0.94) + "px";
+    sheet.style.height = sheet.classList.contains("tall") ? sheet.style.maxHeight : "";
     const a = document.activeElement;
-    if (a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) a.scrollIntoView({ block: "center" });
+    if (kb && a && sheet.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) a.scrollIntoView({ block: "center" });
   };
+  const later = () => [60, 250, 500, 900].forEach((ms) => setTimeout(fit, ms)); // iOS reports the keyboard late
   vv.addEventListener("resize", fit);
   vv.addEventListener("scroll", fit);
-  sheet.addEventListener("focusin", () => setTimeout(fit, 300));
+  sheet.addEventListener("focusin", later);
+  sheet.addEventListener("focusout", later);
   new MutationObserver((_, o) => { if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); o.disconnect(); } })
     .observe(document.body, { childList: true });
   fit();
