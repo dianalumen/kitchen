@@ -217,3 +217,33 @@ export function applyAccent(accent) {
   document.documentElement.dataset.accent = ACCENTS.includes(accent) ? accent : "matcha";
   store("accent", document.documentElement.dataset.accent); // first paint uses the last known accent
 }
+
+// ---------------------------------------------------------------------------
+// ?debug: a small overlay with the numbers that decide where a sheet sits relative to the keyboard.
+// For diagnosing the on-screen keyboard on a real phone; the build stamp shows which code is running.
+// ---------------------------------------------------------------------------
+export const BUILD = "kbd-4";
+export function initDebug() {
+  if (!/[?&]debug\b/.test(location.search)) return;
+  const box = document.createElement("pre");
+  box.style.cssText = "position:fixed;left:4px;top:60px;z-index:999;margin:0;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.75);color:#0f0;font:11px/1.3 monospace;pointer-events:none;white-space:pre";
+  document.body.appendChild(box);
+  const upd = () => {
+    const vv = window.visualViewport, sc = document.querySelector(".scrim"), sh = document.querySelector(".sheet");
+    const r = sh ? sh.getBoundingClientRect() : null;
+    box.textContent = [
+      "build " + BUILD,
+      "inner " + innerWidth + "x" + innerHeight,
+      vv ? "vv " + Math.round(vv.width) + "x" + Math.round(vv.height) + " top " + Math.round(vv.offsetTop) : "no vv",
+      "scrollY " + Math.round(scrollY),
+      "active " + (document.activeElement ? document.activeElement.tagName : "-"),
+      sc ? "scrim " + sc.className + " " + sc.style.top + " " + sc.style.height : "no sheet",
+      r ? "sheet " + Math.round(r.top) + ".." + Math.round(r.bottom) : ""
+    ].join("\n");
+  };
+  ["resize", "scroll"].forEach((e) => { window.addEventListener(e, upd); if (window.visualViewport) window.visualViewport.addEventListener(e, upd); });
+  document.addEventListener("focusin", () => setTimeout(upd, 400));
+  document.addEventListener("focusout", () => setTimeout(upd, 400));
+  setInterval(upd, 500);
+  upd();
+}

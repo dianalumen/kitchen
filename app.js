@@ -1,7 +1,7 @@
 // kitchen — app entry point. Boots demo or Supabase, runs the auth and household gates, then the
 // shell (router, tab bar, settings) with realtime sync. See TECH-GUIDELINES §6 and §9.
 import { t } from "./js/i18n.js";
-import { $, store, applyTheme, applyAccent, closeSheet } from "./js/ui.js";
+import { $, store, applyTheme, applyAccent, closeSheet, initDebug } from "./js/ui.js";
 import { state, useBackend, setData, applyRemote, onChange, flushQueue } from "./js/store.js";
 import { sbBackend } from "./js/backend.js";
 import { demoBackend, DEMO_USER } from "./js/demo.js";
@@ -178,4 +178,5 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
 
+initDebug();
 start().catch((e) => { console.error(e); errorGate("db", e.message || String(e)); });
