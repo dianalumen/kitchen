@@ -14,8 +14,9 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | M3 Shopping list | ✅ done (merged 2026-11-14; [D] shopping trip with both phones done 2026-11-14) |
 | M4 Pantry | ✅ done (merged 2026-11-15 with the phone-test fixes; [D] phone check done 2026-11-15) — one known issue: the iPhone keyboard covers sheet fields, see Known issues |
 | M5 Recipes | ✅ merged 2026-11-15; [D] phone test pending (recipes are empty until the M6 import) |
-| M6 Import | built on branch `m6-import` (script verified against `schema.sql` in a throwaway local Postgres); [D] run the generated SQL once in the SQL Editor |
-| M7 (v1), M8–M9 (v2) | pending |
+| M6 Import | ✅ merged 2026-11-15 (script verified against `schema.sql` in a throwaway local Postgres); [D] run the generated SQL once in the SQL Editor |
+| M7 Release v1 | built on branch `m7-release` (2026-11-16): review fixes, startup performance, keyboard fix verified in the iOS Simulator; [D] check the keyboard on both iPhones, then merge and tag `v1.0.0`, then two weeks of everyday use |
+| M8–M9 (v2) | pending |
 
 ### How milestones run
 
@@ -186,4 +187,8 @@ Every milestone is one branch and one pull request into `main`. Merging to `main
 
 ## Known issues (open)
 
-- **Keyboard covers sheet fields on iPhone** (found in M4, 2026-11-15). In bottom sheets (pantry add, item note, list edit) the on-screen keyboard hides the focused field. Tried without success: sizing the sheet to `visualViewport`, bottom padding by keyboard height, anchoring the sheet to the top of the visual viewport while a field is focused (`fitToKeyboard()` in `js/ui.js`). Not reproducible in the desktop browser; needs a debug pass on a real device (log `innerHeight`, `visualViewport.height/offsetTop` on focus, home-screen app vs Safari). Plan: fix in M7 or earlier as its own small branch.
+None right now. New ones from the two weeks of use go into GitHub issues, one issue per thing.
+
+## Resolved
+
+- **Keyboard covered sheet fields on iPhone** (found in M4, 2026-11-15; fixed in M7, commit `e411caf`). Reproduced in the iOS 27.2 Simulator (iPhone 17, Safari, `?demo`). There were two causes. First, the M4 rule that moved the sheet on `:focus` changed the layout between touch start and click, so the click landed on the scrim and closed the sheet. Second, the fixed scrim kept the layout viewport's height, so the sheet stayed behind the keyboard. Fix: `followKeyboard()` in `js/ui.js` changes nothing on focus. Once `visualViewport` reports the keyboard, the scrim takes the visible area, so the sheet rests on the keyboard and the field scrolls into view inside it. The scrim closes a sheet only when the tap started on it. Verified in the Simulator: the list edit sheet (name and note), the pantry add sheet, and the recipe editor (name, times, link). **Still to check on the real iPhones**, especially the home-screen app, which was not tested in the Simulator. `?debug` shows the build stamp `kbd-5`.

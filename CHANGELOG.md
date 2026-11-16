@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.0.0 · M7 Release v1 — 2026-11-16
+
+First release for everyday use: shopping list, pantry and recipes, shared live between two phones.
+
+**Keyboard (iPhone).** Fixes the known issue from M4. Bottom sheets no longer close when a lower field is tapped, and the focused field stays above the on-screen keyboard (`followKeyboard()` in `js/ui.js`; the scrim closes only on a tap that started on it). Verified in the iOS Simulator; still to check on the real phones.
+
+**Review** (every screen at 320 px and 480 px, light and dark, VoiceOver names, reduced motion, copy rules; details in DESIGN.md "M7"):
+- At 320 px no screen scrolls sideways and every control has an accessible name. O1 and O2 were checked with a fake config.
+- Copy: *Dodaj do listy* in the pantry sheet; placeholders name the action (*Dodaj składnik*, *Nazwa sekcji*), and the ingredient example moved to the hint.
+- 44 px targets for the settings buttons, *Dodaj sekcję* and the cooking-mode step segments. The invite-code buttons wrap under the code on narrow phones.
+
+**Performance** (TECH-GUIDELINES §9 budget):
+- Startup: `modulepreload` for every module, so the import graph loads in one round trip instead of four. The Google Fonts stylesheet no longer blocks the first paint. supabase-js is one UMD file (34 KB gzip) instead of the `+esm` entry (7 modules in 3 round trips), preloaded in parallel with `config.js` outside `?demo`. The page preconnects to the Supabase origin, and `load()` sends all its queries in one round trip (RLS scopes every table to the household).
+- Measured locally with a 150 ms delay per request (Python HTTP/1.1 server, 6 connections per host):
+  - Sign-in screen ready: about 1145 ms before, about 817 ms after.
+  - `?demo` list: about 1180 ms before, 1030–1420 ms after. No gain over HTTP/1.1; GitHub Pages serves HTTP/2, where the preloads load in one round trip.
+  - The saved Supabase round trip in `load()` (about one 4G RTT) was not measured against the real database.
+- Large lists, measured on desktop Chrome with 167 pantry items: opening the pantry 21 ms (13 ms script, 8 ms layout), search per keystroke 1–13 ms, a realtime row patch under 1 ms, a tick on the list 7 ms. No change was needed.
+- `sw.js` cache `kitchen-v6`.
+
+**Docs.** README: Supabase setup, secrets, schema and tests, local development, `?demo`, `?debug`, the home-app import. The plan status is updated, and the keyboard issue is moved to Resolved.
+
 ## M6 · Import from home-app — 2026-11-15
 
 - `tools/import_home_app.py <dump> [--write]`: reads the old backup with `pgdump_read.py` (needs `zstandard`), applies PRODUCT.md §4 and prints a dry-run summary (rows per target table plus samples). With `--write` it generates `supabase/seed/home_app_import.sql` (git-ignored; personal data).

@@ -13,7 +13,8 @@ import "./js/views/pantry.js";
 import "./js/views/recipes.js";
 import "./js/views/cook.js";
 
-const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm";
+// One file (UMD build, ~34 KB gzip) instead of the +esm entry, which pulls 7 modules in 3 round trips.
+const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js";
 
 let B = null;
 let started = false;
@@ -109,6 +110,16 @@ function loadScript(src) {
   });
 }
 
+function preconnect(url) {
+  try {
+    const l = document.createElement("link");
+    l.rel = "preconnect";
+    l.href = new URL(url).origin;
+    l.crossOrigin = "";
+    document.head.appendChild(l);
+  } catch (e) { /* bad URL: getConfig already filtered placeholders */ }
+}
+
 function getConfig() {
   const c = window.APP_CONFIG;
   return c && c.url && c.key && !/your-project|your-publishable/i.test(c.url + c.key) ? c : null;
@@ -132,14 +143,17 @@ async function start() {
     return;
   }
 
+  // config.js and supabase-js load side by side; neither waits for the other.
+  const sbLoaded = loadScript(SUPABASE_JS);
   await loadScript("config.js");
   const cfg = getConfig();
   initGates({ backend: null, onSignedIn, onHousehold: enter, signOut });
   if (!cfg) { errorGate("setup"); return; }
+  preconnect(cfg.url); // the session check and the first load go there next
 
-  let createClient;
-  try { ({ createClient } = await import(SUPABASE_JS)); }
-  catch (e) { errorGate("offline"); return; }
+  await sbLoaded;
+  const createClient = window.supabase && window.supabase.createClient;
+  if (!createClient) { errorGate("offline"); return; }
 
   const sb = createClient(cfg.url, cfg.key, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "kitchen.auth" }

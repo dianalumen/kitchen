@@ -145,16 +145,49 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label, 
     if (e.key === "Tab") trapFocus(e, sheet);
   };
   document.addEventListener("keydown", onKey);
+  // A tap closes the sheet only if it also started on the scrim. On iOS, focusing a field can move
+  // the layout between touch start and the click, and the click then lands on the scrim.
+  let downOnScrim = false;
+  scrim.addEventListener("pointerdown", (e) => { downOnScrim = e.target === scrim; });
   scrim.addEventListener("click", (e) => {
-    if ((e.target === scrim && !sticky) || e.target.closest("[data-sheet-close]")) close();
+    if ((e.target === scrim && downOnScrim && !sticky) || e.target.closest("[data-sheet-close]")) close();
+    downOnScrim = false;
   });
   current = { scrim, close };
+  followKeyboard(scrim, sheet);
   // Once it has slid in, stop the entry animation so toggling the keyboard layout never replays it.
   setTimeout(() => { if (!closed) sheet.style.animation = "none"; }, 400);
   if (onMount) onMount(sheet, close);
   const first = sheet.querySelector("[autofocus]") || sheet.querySelector("[data-sheet-close]");
   if (first) first.focus({ preventScroll: true });
   return close;
+}
+
+// The on-screen keyboard shrinks only the visual viewport on iOS; a fixed scrim keeps the layout
+// viewport's height, so a bottom sheet would sit behind the keyboard. While the keyboard is up the
+// scrim takes the visible area's position and height, so the sheet's bottom rests on the keyboard,
+// and the focused field is scrolled into view inside the sheet. Nothing changes on focus itself
+// (only once the viewport has resized), so the field under the finger stays where it was tapped.
+function followKeyboard(scrim, sheet) {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const fit = () => {
+    if (!scrim.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); return; }
+    const covered = window.innerHeight - vv.height; // keyboard (and accessory bar) height
+    const up = covered > 120 && vv.height > 160;
+    scrim.classList.toggle("kbd", up);
+    scrim.style.top = up ? vv.offsetTop + "px" : "";
+    scrim.style.height = up ? vv.height + "px" : "";
+    if (!up) return;
+    const f = document.activeElement;
+    if (!f || !sheet.contains(f) || !/^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return;
+    const fr = f.getBoundingClientRect(), sr = sheet.getBoundingClientRect();
+    if (fr.bottom > sr.bottom - 12) sheet.scrollTop += fr.bottom - sr.bottom + 16;
+    else if (fr.top < sr.top + 12) sheet.scrollTop -= sr.top - fr.top + 16;
+  };
+  vv.addEventListener("resize", fit);
+  vv.addEventListener("scroll", fit);
+  sheet.addEventListener("focusin", () => setTimeout(fit, 60)); // field to field with the keyboard already up
 }
 
 export function closeSheet() { if (current) current.close(); }
@@ -228,7 +261,7 @@ export function applyAccent(accent) {
 // ?debug: a small overlay with the numbers that decide where a sheet sits relative to the keyboard.
 // For diagnosing the on-screen keyboard on a real phone; the build stamp shows which code is running.
 // ---------------------------------------------------------------------------
-export const BUILD = "kbd-4";
+export const BUILD = "kbd-5";
 export function initDebug() {
   if (!/[?&]debug\b/.test(location.search)) return;
   const box = document.createElement("pre");

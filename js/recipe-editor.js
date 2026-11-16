@@ -166,13 +166,7 @@ export function openEditor(id, restored = null) {
       // The sheet may not be laid out yet on the first paint; size the step boxes once it is.
       requestAnimationFrame(() => stepsBox.querySelectorAll("textarea").forEach(grow));
 
-      // A focused field stays in view inside the sheet (the sheet moves to the top half while the
-      // keyboard is up, see styles.css), so it can always be scrolled to.
-      sheet.addEventListener("focusin", (e) => {
-        if (!e.target.matches("input,textarea")) return;
-        const el = e.target;
-        [60, 360].forEach((ms) => setTimeout(() => { if (document.activeElement === el) el.scrollIntoView({ block: "nearest" }); }, ms));
-      });
+      // A focused field is kept in view above the keyboard by openSheet (followKeyboard in js/ui.js).
 
       // Photo
       const fileIn = sheet.querySelector("[data-file]");
