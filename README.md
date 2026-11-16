@@ -1,43 +1,80 @@
 # kitchen
 
-A shared progressive web app for two people: a shopping list, a pantry and a recipe book that stay in sync in real time. It is plain HTML, CSS and JavaScript with no build step, backed by Supabase (Auth, Postgres with row-level security, Realtime, Storage) and hosted on GitHub Pages. The UI is in Polish; the code and docs are in English.
+A shared progressive web app for two people: a shopping list, a pantry and a recipe book that stay in sync in real time. It is plain HTML, CSS and JavaScript ES modules with no build step, backed by Supabase (Auth, Postgres with row-level security, Realtime, Storage) and hosted on GitHub Pages. The UI is in Polish; the code and docs are in English.
+
+Live: <https://dianalumen.github.io/kitchen/> · without an account: <https://dianalumen.github.io/kitchen/?demo>
 
 ## Documentation
 
-- [PRODUCT.md](PRODUCT.md) — what we build and why
-- [TECH-GUIDELINES.md](TECH-GUIDELINES.md) — stack, database, auth, deploy, conventions
-- [DESIGN.md](DESIGN.md) — visual direction
-- [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) — milestones and status
+- [PRODUCT.md](PRODUCT.md): what we build and why
+- [TECH-GUIDELINES.md](TECH-GUIDELINES.md): stack, database, auth, deploy, conventions
+- [DESIGN.md](DESIGN.md): visual direction A "Leaflet", UX copy rules, deliberate differences
+- [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md): milestones, status, known issues
+- [CHANGELOG.md](CHANGELOG.md): what shipped in each milestone
 
 ## Setup
 
-1. Create the GitHub repository `dianalumen/kitchen` (`config.js` is already in `.gitignore`).
-2. Create a new Supabase project (separate from any other project).
-3. In the Supabase SQL Editor, run `supabase/schema.sql`, then `supabase/tests.sql` to check access.
-4. In GitHub, go to *Settings → Secrets and variables → Actions* and add `SUPABASE_URL` and `SUPABASE_KEY` (the publishable / anon key, never `service_role`).
-5. In GitHub, go to *Settings → Pages* and set the source to **GitHub Actions**.
-6. In Supabase, go to *Authentication → URL Configuration*: set the Site URL to `https://dianalumen.github.io/kitchen/` and add redirect URLs for it and for `http://localhost:8000/**`.
-7. Push to `main`; the workflow deploys to <https://dianalumen.github.io/kitchen/>.
-8. Sign up, create a household and send the code to the other person; they sign up and join with the code.
+### 1. Supabase project
 
-The Supabase URL and key are never committed: the deploy workflow writes `config.js` from the repository secrets.
+1. Create a **new** Supabase project (not shared with any other app).
+2. In the SQL Editor, run [`supabase/schema.sql`](supabase/schema.sql). It is idempotent: run it again after every schema change.
+3. Run [`supabase/tests.sql`](supabase/tests.sql). It impersonates two members, an outsider, a user without a household and `anon`, prints PASS/FAIL per table and RPC, and rolls everything back. All lines must say PASS.
+4. *Authentication → URL Configuration*: set the Site URL to `https://dianalumen.github.io/kitchen/` and add redirect URLs for it and for `http://localhost:8000/**`.
+
+### 2. GitHub repository and secrets
+
+1. *Settings → Secrets and variables → Actions*: add `SUPABASE_URL` (the project URL) and `SUPABASE_KEY` (the **publishable / anon** key, never `service_role`).
+2. *Settings → Pages*: set the source to **GitHub Actions**.
+3. Push to `main`. The workflow (`.github/workflows/pages.yml`) writes `config.js` from the two secrets and publishes an explicit list of files. A merge to `main` is a deploy.
+
+The Supabase URL and key are never committed: `config.js` is git-ignored.
+
+### 3. First use
+
+Sign up on the first phone, create a household, and send the invite code from *Ustawienia → Udostępnij*. The second person signs up and joins with the code. Install the app from Safari's *Share → Add to Home Screen*.
 
 ## Local development
 
 ```bash
-cp config.example.js config.js   # then fill in your Supabase URL and publishable key
+cp config.example.js config.js   # then fill in the Supabase URL and publishable key
 python3 -m http.server 8000
 ```
 
-Open <http://localhost:8000/> (sign in) or <http://localhost:8000/?demo> (sample data, no account, nothing is saved; works without `config.js`). The service worker registers only on `https:`, so local edits show up on reload.
+Open <http://localhost:8000/> to sign in, or <http://localhost:8000/?demo> for the demo.
+
+- The service worker registers only on `https:`, so local edits show up on reload.
+- `?debug` adds an overlay with the viewport and keyboard numbers (for phone debugging). Its build stamp shows which code is running.
+- [`tests/parse.html`](tests/parse.html) runs the parser and category-rule checks in the browser (not deployed). Open <http://localhost:8000/tests/parse.html>.
+
+### `?demo`
+
+`?demo` runs the whole app on `demoBackend()` (`js/demo.js`) with Polish sample data: a list with bought items, 57 pantry items with every alert case, and 8 recipes. Changes stay in the tab and nothing is saved. Demo never loads `config.js` or supabase-js, so it works without `config.js`. Every milestone keeps the demo up to date with the new features.
 
 ### Files
 
 | Path | What it is |
 |---|---|
-| `index.html`, `styles.css`, `app.js` | Page, design tokens and components (direction A "Leaflet"), entry point (boot, auth, realtime) |
-| `js/` | ES modules: `store.js` (state, optimistic writes, realtime patching), `backend.js` (`sbBackend`), `demo.js` (`demoBackend` + sample data), `shell.js` (router, tab bar, header), `gates.js` (sign in, household), `settings.js`, `ui.js` (sheet, toast, icons), `i18n.js`, `views/` (one file per screen) |
-| `i18n/pl.js` | Every UI string (Polish) |
-| `manifest.webmanifest`, `sw.js`, `icons/` | PWA; icons are generated by `python3 tools/make_icons.py` |
+| `index.html`, `styles.css`, `app.js` | Page (with `modulepreload` for every module), design tokens and components, entry point (boot, auth, realtime) |
+| `js/` | ES modules: `store.js` (state, optimistic writes, offline queue, realtime patching), `backend.js` (`sbBackend`), `demo.js` (`demoBackend` + sample data), `shell.js` (router, tab bar, header), `gates.js` (sign in, household), `settings.js`, `categories.js`, `ui.js` (sheet, keyboard handling, toast, icons), `parse.js`, `pickers.js`, `drag.js`, `recipes-data.js`, `recipe-editor.js`, `i18n.js`, `views/` (one file per screen) |
+| `i18n/pl.js` | Every UI string (Polish), written to the UX copy rules |
+| `manifest.webmanifest`, `sw.js`, `icons/` | PWA. Icons are generated by `python3 tools/make_icons.py` |
+| `supabase/` | `schema.sql`, `tests.sql`; `seed/` is git-ignored |
+| `tools/` | The home-app import and the icon generator (not deployed) |
 
-New shipped files go into the workflow's allow-list (`.github/workflows/pages.yml`) and into `SHELL` in `sw.js` (bump the cache version).
+A new shipped file must be added in four places: the workflow's allow-list, `SHELL` in `sw.js` (bump `CACHE`), and, for a module, a `modulepreload` line in `index.html`.
+
+## Import from home-app
+
+A one-off move of the old app's data (PRODUCT.md §4): recipes with ingredients, the pantry without the fridge, the open shopping items, and the category rules.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install zstandard            # Supabase dumps are zstd-compressed
+.venv/bin/python -I tools/import_home_app.py path/to/dump.backup          # dry run: counts and samples
+.venv/bin/python -I tools/import_home_app.py path/to/dump.backup --write  # writes supabase/seed/home_app_import.sql
+```
+
+1. Check the dry-run counts (11 recipes, 60 ingredients, 155 pantry items, 7 shopping items, 187 rules).
+2. Open `supabase/seed/home_app_import.sql` and put your household's invite code on the line marked `<== EDIT`.
+3. Run the file once in the SQL Editor. It runs in one transaction, skips rows that already exist (a second run adds nothing), and ends with a table of rows added and skipped.
+
+The dump and the generated SQL contain personal data: never commit them (`*.backup` and `supabase/seed/*.sql` are git-ignored).

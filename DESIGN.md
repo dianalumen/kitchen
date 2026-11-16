@@ -173,3 +173,13 @@ Recorded per the working rules; each can be changed back if it reads wrong on th
 - **Prep and cook time are two fields** ("Przygotowanie, min" and "Gotowanie, min"); cards and the view show the sum.
 - **Cooking mode** shows only the ingredients the step mentions (matched by name); a step without a timer has no timer control. One timer runs at a time and stops when cooking mode is closed.
 - **Servings in the recipe view are not saved**; they reset to the recipe's servings when another recipe is opened.
+
+### Deliberate differences in the build (M7, release review)
+Found in the pass over every screen at 320 px and 480 px, light and dark (2026-11-15).
+- **Sheets and the on-screen keyboard.** While the keyboard is up, the sheet's bottom rests on the keyboard and the sheet scrolls inside; its surface continues behind the keyboard's translucent bars. A tap on the scrim closes a sheet only if the touch also started on the scrim. (The M4 rule that moved sheets to the top half on focus is gone: it made iOS close the sheet when a lower field was tapped.)
+- **Every small control is 44 px**: the settings buttons (*Nowy kod*, *Udostępnij*, the *Zużyj wkrótce* −/+), the editor's *Dodaj sekcję*, and the cooking-mode progress segments (the visible bar stays 6 px, the tap area is 44 px).
+- **Invite code row wraps** on narrow phones: *Nowy kod* and *Udostępnij* move under the code instead of squeezing it.
+- **Accent swatches** keep six per row; below 360 px the gaps shrink, so a swatch is about 39 px with the gap making up the rest.
+- **The pantry item sheet's list button reads *Dodaj do listy*** (it said "Na listę zakupów"), as on P2/P3.
+- **Placeholders name the action only**: *Dodaj składnik*, *Nazwa sekcji*. The ingredient example moved to the hint above the field ("Ilość po nazwie, notatka po przecinku: pomidory 400 g, w puszce"). The recipe name keeps "Np. szakszuka", because that field fills in a value rather than adding something.
+- **The demo banner's *Wyjdź* stays 36 px** (demo only, inside a 48 px bar).
