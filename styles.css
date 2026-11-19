@@ -322,6 +322,16 @@ input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
 .steps .tag svg{width:13px;height:13px}
 .srclink{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;color:var(--ink);font-weight:600;font-size:15px;text-underline-offset:3px}
 .srclink svg{width:18px;height:18px;color:var(--muted)}
+/* Macros under the title (M7.2): kcal + Dietetyk label, then B/T/W/Bł tiles */
+.macros{display:flex;flex-direction:column;gap:8px}
+.macros .kc{display:flex;align-items:center;gap:10px;padding:0 4px}
+.macros .kc b{font-size:22px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.macros .src{font-size:12px;font-weight:600;color:var(--ink);background:var(--soft);border-radius:999px;padding:4px 10px}
+.macros .mcs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.macros .mc{display:flex;flex-direction:column;gap:2px;background:var(--soft);border-radius:18px;padding:8px 10px;min-width:0}
+.macros .mc b{font-size:13px;font-weight:600;color:var(--muted)}
+.macros .mc span{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rnotes{margin:8px 0 0;padding:12px 14px;background:var(--soft);border-radius:22px;font-size:15px;line-height:1.4;white-space:pre-line;overflow-wrap:anywhere}
 /* Dock: Dodaj N do listy + Gotuj, over the bottom of the page */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:7;padding:22px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:linear-gradient(to bottom,transparent,var(--bg) 22px);pointer-events:none}
 .dock .in{max-width:448px;margin:0 auto;display:flex;gap:8px;pointer-events:auto}
@@ -339,6 +349,8 @@ input.fld[type="date"]::-webkit-date-and-time-value{text-align:left}
 .duo.even{grid-template-columns:repeat(2,minmax(0,1fr))}
 .esec{display:flex;flex-direction:column;gap:8px}
 .esec .hint{margin:-4px 0 2px 4px;color:var(--muted)}
+.emacros{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.emacros .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .esec>.btn.mini{align-self:flex-start}
 .erows{display:flex;flex-direction:column;gap:6px}
 .erows:empty{display:none}

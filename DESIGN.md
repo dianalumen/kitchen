@@ -183,3 +183,10 @@ Found in the pass over every screen at 320 px and 480 px, light and dark (2026-1
 - **The pantry item sheet's list button reads *Dodaj do listy*** (it said "Na listę zakupów"), as on P2/P3.
 - **Placeholders name the action only**: *Dodaj składnik*, *Nazwa sekcji*. The ingredient example moved to the hint above the field ("Ilość po nazwie, notatka po przecinku: pomidory 400 g, w puszce"). The recipe name keeps "Np. szakszuka", because that field fills in a value rather than adding something.
 - **The demo banner's *Wyjdź* stays 36 px** (demo only, inside a 48 px bar).
+
+### Deliberate differences in the build (M7.2, dietitian recipes)
+No board exists for these; they follow the A components.
+- **Dietetyk chip** is a toggle after the meal-type chips, so "Dietetyk + Śniadanie" works; *Wszystkie* clears both.
+- **Macros in R2** sit between the title and the servings row: kcal at 22 px with a small soft *Dietetyk* pill, then four soft tiles (B, T, W, Bł) with the letter muted and the grams in ink. Screen readers hear the full words ("Białko 39 g"). The numbers are for the servings in the stepper, rounded to whole numbers.
+- **"ok." marks estimated macros**, including dietitian numbers changed by hand in the editor; the *Dietetyk* pill shows only for unchanged dietitian numbers.
+- **Uwagi** (the recipe's notes, e.g. the dietitian's tips) show as a soft block after the steps; the editor does not edit them yet.

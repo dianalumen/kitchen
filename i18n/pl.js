@@ -297,6 +297,29 @@ export default {
   meal_dinner: "Kolacja",
   meal_snack: "Przekąska",
 
+  // Macros and dietitian recipes (v1.1, M7.2)
+  recipe_notes: "Uwagi",
+  macro_kcal: "{n} kcal",
+  macro_kcal_est: "ok. {n} kcal",
+  macro_g: "{n} g",
+  macro_p: "B",
+  macro_f: "T",
+  macro_c: "W",
+  macro_fib: "Bł",
+  macro_p_long: "Białko {n} g",
+  macro_f_long: "Tłuszcze {n} g",
+  macro_c_long: "Węglowodany {n} g",
+  macro_fib_long: "Błonnik {n} g",
+  macro_src_dietitian: "Dietetyk",
+  macro_title: "Makro na porcję",
+  macro_hint_diet: "Liczby od dietetyka",
+  macro_hint_est: "Wpisane ręcznie pokażą się jako ok.",
+  macro_kcal_lbl: "Kcal",
+  macro_p_lbl: "Białko, g",
+  macro_f_lbl: "Tłuszcze, g",
+  macro_c_lbl: "Węglowodany, g",
+  macro_fib_lbl: "Błonnik, g",
+
   // Short month names for dates ("20 lis", "lis 2026")
   months_long: ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"],
   months_short: ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]

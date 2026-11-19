@@ -142,9 +142,9 @@ function sampleData() {
       id, title, mealType, servings, prepMinutes: prep, cookMinutes: cook, description: null, sourceUrl: null,
       imagePath: null, tags: [], favorite: false, notes: null, createdBy: "demo-you", createdAt: ts(30000), updatedAt: ts(30000), ...extra
     });
-    ings.forEach(([name, amount, unit, note, section], i) => ingredients.push({
+    ings.forEach(([name, amount, unit, note, section, grams], i) => ingredients.push({
       id: newId(), recipeId: id, position: i + 1, name, nameKey: name.toLowerCase(), amount, unit, note: note || null,
-      section: section || null, updatedAt: ts(30000)
+      section: section || null, grams: grams ?? (unit === "g" ? amount : null), updatedAt: ts(30000)
     }));
     stepTexts.forEach((s, i) => {
       const [text, timer] = Array.isArray(s) ? s : [s, null];
@@ -221,6 +221,37 @@ function sampleData() {
     "Zmiksuj wszystko na gładko, dolewając zalewy do konsystencji.",
     "Przełóż do miseczki i polej oliwą."
   ]);
+
+  // Dietitian-style recipes (M7.2): made-up sample data, one serving each, macros per serving,
+  // grams on every ingredient, the household measure as the amount when it is countable.
+  const diet = (kcal, proteinG, fatG, carbsG, fiberG, notes = null) =>
+    ({ tags: ["Dietetyk"], kcal, proteinG, fatG, carbsG, fiberG, macrosSource: "dietitian", notes });
+  recipe("Pasta jajeczna ze szczypiorkiem na żytnim", "breakfast", 1, 10, 0, [
+    ["Chleb żytni razowy", 2, "kromka", null, null, 80], ["Jajka", 2, "szt", null, null, 112],
+    ["Jogurt naturalny", 30, "g", "1,5 łyżki"], ["Rzodkiewka", 60, "g", "4 szt."], ["Szczypiorek", 5, "g", "1 łyżka"],
+    ["Sól", 1, "g", "1 szczypta"]
+  ], [
+    ["Ugotuj jajka na twardo.", 9],
+    "Obierz i posiekaj jajka, wymieszaj z jogurtem i szczypiorkiem, dopraw.",
+    "Nałóż pastę na chleb, podawaj z rzodkiewką."
+  ], diet(412.6, 23.8, 13.9, 44.1, 9.2));
+  recipe("Dorsz z kaszą jaglaną i fasolką", "lunch", 1, 25, 0, [
+    ["Dorsz", 150, "g", "filet"], ["Oliwa z oliwek", 5, "g", "0,5 łyżki"], ["Cytryny", 0.5, "szt", "sok", null, 40],
+    ["Kasza jaglana", 60, "g", "4 łyżki", "Kasza jaglana"],
+    ["Fasolka szparagowa", 150, "g", "mrożona", "Fasolka z czosnkiem"], ["Czosnek", 1, "ząbek", null, "Fasolka z czosnkiem", 5],
+    ["Oliwa z oliwek", 5, "g", "0,5 łyżki", "Fasolka z czosnkiem"]
+  ], [
+    ["Skrop rybę sokiem z cytryny i oliwą, piecz w 190°C.", 15],
+    ["Kasza jaglana: przepłucz kaszę i ugotuj w dwóch szklankach wody.", 15],
+    ["Fasolka z czosnkiem: ugotuj fasolkę na parze.", 8],
+    "Wymieszaj fasolkę z oliwą i przeciśniętym czosnkiem."
+  ], diet(548.3, 38.7, 13.2, 62.5, 10.4));
+  recipe("Serek wiejski z ogórkiem i pestkami", "snack", 1, 5, 0, [
+    ["Serek wiejski", 1, "szt", "lekki", null, 150], ["Ogórek", 0.5, "szt", null, null, 90],
+    ["Pestki słonecznika", 10, "g", "1 łyżka"], ["Pieprz", 1, "g", "1 szczypta"]
+  ], [
+    "Pokrój ogórka w kostkę, wymieszaj z serkiem i posyp pestkami."
+  ], diet(231.4, 19.6, 11.8, 9.7, 2.1, "Można przygotować wieczorem i wziąć do pracy."));
 
   return {
     household: { id: "demo", name: "Nasza kuchnia", code: "K7Q2MX4P", createdAt: ts(60000) },

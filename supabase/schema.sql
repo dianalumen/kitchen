@@ -245,6 +245,28 @@ create table if not exists public.recipe_steps (
 create index if not exists recipe_steps_recipe_idx
   on public.recipe_steps (household_id, recipe_id, position);
 
+-- Macros (v1.1, M7.2). Added with `alter table` so that running this file again
+-- on a database from v1.0 adds them in place. Per serving of the recipe:
+-- kcal, protein, fat, carbs and fiber in grams, all optional. macros_source says
+-- where the numbers come from: 'dietitian' (the dietitian's plan, exact) or
+-- 'estimated' (typed in by hand or computed, shown as "ok."); it needs kcal.
+-- recipe_ingredients.grams is the weight the ingredient adds to the recipe, for
+-- macro math (M7.3), next to amount + unit, which may be a household measure.
+alter table public.recipes
+  add column if not exists kcal          numeric check (kcal >= 0 and kcal < 10000),
+  add column if not exists protein_g     numeric check (protein_g >= 0 and protein_g < 1000),
+  add column if not exists fat_g         numeric check (fat_g >= 0 and fat_g < 1000),
+  add column if not exists carbs_g       numeric check (carbs_g >= 0 and carbs_g < 1000),
+  add column if not exists fiber_g       numeric check (fiber_g >= 0 and fiber_g < 1000),
+  add column if not exists macros_source text check (macros_source in ('dietitian', 'estimated'));
+
+alter table public.recipes drop constraint if exists recipes_macros_source_kcal_check;
+alter table public.recipes add constraint recipes_macros_source_kcal_check
+  check (macros_source is null or kcal is not null);
+
+alter table public.recipe_ingredients
+  add column if not exists grams numeric check (grams > 0 and grams < 100000);
+
 
 -- ---------------------------------------------------------------------------
 -- 3. Triggers

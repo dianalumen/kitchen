@@ -171,8 +171,8 @@ Thanks to `default current_household()`, the frontend never has to send `househo
 - `units` — code (`g`, `szt`, `łyżka`…), position; seeded with the 12 codes in PRODUCT.md §4. Codes are data; display labels go through translations. Items store `unit` as text (no foreign key).
 - `shopping_items` — name, `name_key`, amount, unit, category_id, checked, `checked_at` (set/cleared by a trigger when `checked` changes), note, `recipe_id` (optional — where it came from), `created_by`, `created_at`, `updated_at`.
 - `pantry_items` — name, `name_key`, amount (`0` = run out, `null` = unknown), unit, category_id, `best_before date`, `best_before_precision` (`'day' | 'month'`, not null, default `'day'`), `low boolean`, note, `created_by`, `created_at`, `updated_at`.
-- `recipes` — title, `meal_type` (`'breakfast' | 'lunch' | 'dinner' | 'snack'`, nullable), description, servings, `prep_minutes`, `cook_minutes`, `source_url` (http/https only), `image_path` (object path in the `recipe-images` bucket), tags (`text[]`), favorite, notes, `created_by`, `created_at`, `updated_at`.
-- `recipe_ingredients` — recipe_id, position, amount (`numeric`), unit, name, `name_key`, note (e.g. "chopped"), section (e.g. "dough", "frosting").
+- `recipes` — title, `meal_type` (`'breakfast' | 'lunch' | 'dinner' | 'snack'`, nullable), description, servings, `prep_minutes`, `cook_minutes`, `source_url` (http/https only), `image_path` (object path in the `recipe-images` bucket), tags (`text[]`), favorite, notes, `created_by`, `created_at`, `updated_at`. Since v1.1 (M7.2) also macros per serving: `kcal`, `protein_g`, `fat_g`, `carbs_g`, `fiber_g` (numeric, nullable) and `macros_source` (`'dietitian' | 'estimated'`, needs `kcal`).
+- `recipe_ingredients` — recipe_id, position, amount (`numeric`), unit, name, `name_key`, note (e.g. "chopped"), section (e.g. "dough", "frosting"), `grams` (numeric, nullable; the weight for macro math, M7.2).
 - `recipe_steps` — recipe_id, position, `text`, optional `timer_minutes`.
 
 Every data table also has `updated_at` (trigger on update) so the client can skip the realtime echo of its own writes, and `id uuid` (no sequences to grant).

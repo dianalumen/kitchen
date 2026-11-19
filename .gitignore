@@ -1,4 +1,6 @@
 config.js
 *.backup
-supabase/seed/*.sql
+# Imports carry personal data: nothing in supabase/seed/ is committed except its README.
+supabase/seed/*
+!supabase/seed/README.md
 .DS_Store
