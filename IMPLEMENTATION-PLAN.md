@@ -15,8 +15,9 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | M4 Pantry | ✅ done (merged 2026-11-15 with the phone-test fixes; [D] phone check done 2026-11-15) — one known issue: the iPhone keyboard covers sheet fields, see Known issues |
 | M5 Recipes | ✅ merged 2026-11-15; [D] phone test pending (recipes are empty until the M6 import) |
 | M6 Import | ✅ merged 2026-11-15 (script verified against `schema.sql` in a throwaway local Postgres); [D] run the generated SQL once in the SQL Editor |
-| M7 Release v1 | built on branch `m7-release` (2026-11-16): review fixes, startup performance, keyboard fix verified in the iOS Simulator; [D] check the keyboard on both iPhones, then merge and tag `v1.0.0`, then two weeks of everyday use |
-| M8–M9 (v2) | pending |
+| M7 Release v1 | ✅ merged and tagged `v1.0.0` 2026-11-16; [D] two weeks of everyday use running (until ~2026-11-30) |
+| v1.1: M7.1–M7.3 | planned 2026-11-19: multi-line paste, dietitian recipes with macros, macro estimates for other recipes |
+| M8–M9 (v2) | pending, after v1.1 |
 
 ### How milestones run
 
@@ -32,6 +33,9 @@ Every milestone runs in **its own Claude Code session**, started from the coordi
 | M5 Recipes | Opus 5.5 | high | Most screens, scaling, editor, Storage, wake lock |
 | M6 Import | Sonnet 5.5 | medium | Data mapping already specified in PRODUCT.md §4 |
 | M7 Release v1 | Opus 5.5 | high | Review against design, copy rules and performance budget |
+| M7.1 Multi-line paste | Sonnet 5.5 | medium | Small, follows the existing parser and sheets |
+| M7.2 Dietitian recipes | Opus 5.5 | high | Schema change, import of personal data, recipe view changes |
+| M7.3 Macro estimates | Opus 5.5 | high | Nutrition reference data and matching; accuracy is checked against the dietitian's numbers |
 | M8–M9 (v2) | Opus 5.5 | high | New design + aggregation RPC |
 
 Screen IDs used below (L1–L4, P1–P3, R1–R4, O1, O2, S1, V2) are the wireframe IDs in [DESIGN.md §1](DESIGN.md#1-screen-inventory-wireframes). The hi-fi reference for every screen is the **A — Leaflet** board; where the wireframe and the A board differ, A wins.
@@ -159,6 +163,51 @@ Every milestone is one branch and one pull request into `main`. Merging to `main
 | [D] | Two weeks of everyday use; collect what's annoying in a GitHub issue (one issue per thing). |
 
 **Done when:** both of us used the list, pantry and recipes for two weeks without going back to notes or another app. Fixes from those two weeks ship as `v1.0.x`.
+
+---
+
+## v1.1 (during and after the two weeks of use, before v2)
+
+Feedback from the first days of use (2026-11-19). They run in this order; each is its own branch and session.
+
+### M7.1 · Multi-line paste
+
+| | Task |
+|---|---|
+| [C] | Pasting text with line breaks into an add field creates **one item per line**. Use it for the shopping list add (L1), the pantry add sheet (P3), and recipe ingredients and steps (R3). Empty lines are dropped. Bullet and number prefixes are stripped: `-`, `•`, `*`, `–`, `1.`, `1)`, `[ ]`. Each line goes through the existing `parseItem()`, so "mąka 0,5 kg" still gets an amount and unit. |
+| [C] | Before adding more than one item, show a preview sheet with the lines; any line can be removed. The button says the result: *Dodaj 7 pozycji*. Undo removes the whole batch. |
+| [C] | Steps in R3: a single pasted paragraph without line breaks shows *Podziel na kroki*, which splits it by sentence into steps. |
+| [C] | Tests in `tests/parse.html` for the line splitter: bullets, numbering, Windows line breaks, empty lines, and a single line, which must behave as today. |
+
+**Done when:** a list copied from Notes or a chat lands on the shopping list as separate items with amounts, and a pasted recipe text becomes separate ingredients and steps.
+
+### M7.2 · Dietitian recipes with macros
+
+Source: the user's meal-plan artifact (a private claude.ai artifact; the coordinating session has the link — never put it in the public repo). It holds 7 days × 4 meals = 28 meals. Each meal has 1–3 dishes, ingredients in grams plus a household measure ("2 łyżki"), steps, the dietitian's notes, and macros per meal: kcal, protein, fat, carbs, fiber. The user already swapped several dishes for their own versions with recalculated macros. **This is personal health data:** the saved copy and the generated SQL are never committed.
+
+| | Task |
+|---|---|
+| [C] | **Schema:** `recipes` gets macros per serving (`kcal`, `protein_g`, `fat_g`, `carbs_g`, `fiber_g`, numeric, nullable) and `macros_source` (`'dietitian'` or `'estimated'`). `recipe_ingredients` gets `grams` (numeric, nullable) for the weight used in macro math. Update `schema.sql` (idempotent) and `tests.sql`. |
+| [C] | **Import** via `tools/import_dietitian.py`, the same pattern as M6. It reads a local copy of the artifact HTML (`*.html` under `supabase/seed/`, git-ignored), takes the **current version of each meal** (the user's swap when there is one, otherwise the original), and writes `supabase/seed/dietitian_import.sql`. Dry run by default; safe to run twice. |
+| [C] | **Mapping:** one recipe per meal, so the dietitian's macros stay exact. The title is the main dish. Side dishes ("Brokuł z oliwą i czosnkiem") become ingredient sections, with their steps after the main dish's steps. `tags = {'Dietetyk'}`, `servings = 1`, `macros_source = 'dietitian'`, the dietitian's dish notes go to `notes`, the time is the longest dish time, and the brownie keeps its 5-portion note. Ingredients: `grams` is always set. `amount` and `unit` hold the household measure when it is countable (szt., ząbek, kromka, plaster); otherwise the grams. |
+| [C] | **Meal types:** Śniadanie → `breakfast`, Drugie śniadanie → `snack`, Obiad → `lunch`, Kolacja → `dinner`. The UI label for `snack` becomes "Drugie śniadanie" in `i18n/pl.js` (no old recipe uses `snack`). |
+| [C] | **UI:** R1 gets a *Dietetyk* chip next to the meal-type chips. R2 shows macros per serving under the title ("520 kcal", then B 41 g, T 15 g, W 50 g, Bł 9 g) scaled by the servings stepper, plus a small *Dietetyk* label. R3 lets you edit the macros by hand. Follow the copy rules: no brackets, no `·`. |
+| [D] | Save the artifact page locally (the coordinating session can do it), run the generated SQL once in the SQL Editor, and check the 28 recipes in the app. |
+
+**Done when:** the app shows 28 recipes with the *Dietetyk* label and the macros match the dietitian's numbers.
+
+### M7.3 · Macro estimates for other recipes
+
+| | Task |
+|---|---|
+| [C] | **Reference table** `foods`: global and read-only for clients, not per household. Columns: name, aliases, kcal/protein/fat/carbs/fiber per 100 g, and grams per household unit (an egg 56 g, a spoon of oil 10 g, a clove of garlic 5 g, …). About 150 common ingredients, seeded from a public-domain source (USDA FoodData Central) with Polish names. Covers every ingredient of the dietitian recipes and of the 11 imported home-app recipes. |
+| [C] | **Matching:** an ingredient's name maps to a food via its aliases. `recipe_ingredients.food_id` stores a match that was picked by hand in R3 when the automatic one is wrong or missing. Grams come from `grams`, from amount + unit, or from the food's grams per unit. |
+| [C] | **Estimate:** a recipe without dietitian macros shows "ok. 480 kcal" plus B/T/W, and "2 składniki bez danych" when some ingredients have no match. Estimates are computed in the browser and never overwrite dietitian numbers. |
+| [C] | **Accuracy check:** compute estimates for the 28 dietitian meals and compare them with the dietitian's macros. The target is kcal within 10% for at least 24 of 28; record the result in CHANGELOG. |
+
+**Done when:** every recipe shows macros (exact or "ok."), and the dietitian check meets the target.
+
+> M8 Meal plan later builds on this: the four slots from the dietitian's plan (Śniadanie, Drugie śniadanie, Obiad, Kolacja) and daily macro totals.
 
 ---
 
