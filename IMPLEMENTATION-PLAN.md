@@ -36,7 +36,7 @@ Every milestone runs in **its own Claude Code session**, started from the coordi
 | M7.1 Multi-line paste | Sonnet 5.5 | medium | Small, follows the existing parser and sheets |
 | M7.2 Dietitian recipes | Opus 5.5 | high | Schema change, import of personal data, recipe view changes |
 | M7.3 Macro estimates | Opus 5.5 | high | Nutrition reference data and matching; accuracy is checked against the dietitian's numbers |
-| M8–M9 (v2) | Opus 5.5 | high | New design + aggregation RPC |
+| M8–M9 (v2) | Opus 5.5 | high | New design, people and kcal portions, aggregation RPC |
 
 Screen IDs used below (L1–L4, P1–P3, R1–R4, O1, O2, S1, V2) are the wireframe IDs in [DESIGN.md §1](DESIGN.md#1-screen-inventory-wireframes). The hi-fi reference for every screen is the **A — Leaflet** board; where the wireframe and the A board differ, A wins.
 
@@ -213,13 +213,30 @@ Source: the user's meal-plan artifact (a private claude.ai artifact; the coordin
 
 ## v2 (starts only after M7)
 
-### M8 · Meal plan
-- [C] Hi-fi design of the Plan tab on the canvas first (only the **V2** wireframe exists), then `meal_plan` table + RLS/grant/realtime; a 4th tab **Plan** (rightmost) with a week strip (Leaflet `.week` pattern), meals per day with "3/6 w domu", add a recipe from a sheet with servings.
-- **Done when:** we plan one full week in the app.
+### M8 · Meal plan for several days and several people
 
-### M9 · Shopping list from the plan
-- [C] RPC `add_plan_to_list(from, to)`: sums ingredients of all planned meals, scales by servings, subtracts the pantry, merges with what's already on the list; preview sheet before adding.
-- **Done when:** one weekly shop is done from a list generated from the plan, without adding anything by hand that the plan should have covered.
+| | Task |
+|---|---|
+| [C] | **Design first:** a hi-fi Plan tab on the canvas (only the **V2** wireframe exists). It covers the range picker, a day with 4 slots, the add-meal sheet, the people settings, and the "what's at home" step from M9. Record it in DESIGN.md. |
+| [C] | **Range, not only a week:** plan any span of days, e.g. *Pn–Śr* or 5 days from tomorrow. The default is the next 7 days. A 4th tab **Plan** (rightmost) with a day strip (Leaflet `.week` pattern) scrolls across the range. |
+| [C] | **Slots per day:** Śniadanie, Drugie śniadanie, Obiad, Kolacja (same as the dietitian plan). Any slot can stay empty or hold more than one recipe. Each meal shows "3/6 w domu". Copy a day to another day, or repeat a meal for the next days (the dietitian allows the same meals 2 days in a row). |
+| [C] | **People:** a household list of people who eat, in settings: name, plus an **optional** daily kcal target. Both of you are there by default, and you can add a person, e.g. a guest for one day. Each planned meal says who eats it; the default is everyone. Servings = the number of people when nobody has a kcal target. |
+| [C] | **Portions by kcal (optional):** when a person has a kcal target and the recipe has macros (M7.2/M7.3), that person's portion is scaled so the day hits the target. The slot shares come from the dietitian plan: about 25% breakfast, 15% second breakfast, 35% lunch, 25% dinner, editable in settings. The meal shows the portion per person, e.g. "Ania 1,2 porcji, Ola 0,8 porcji", and the total servings that M9 uses. Without a target or without macros, a portion is 1. |
+| [C] | **Day totals:** kcal and B/T/W per person per day, using "ok." when any part is estimated. |
+| [C] | **Schema:** `meal_people` (name, `kcal_target` nullable, position), `meal_plan` (date, slot, recipe, position), `meal_plan_people` (which people eat, with the computed portion), plus slot shares on the household. RLS, grants and realtime as for the other tables; tests in `tests.sql`. |
+
+**Done when:** we plan 4 days for 2 people, one of us with a kcal target, and the portions and day totals make sense.
+
+### M9 · Shopping list from the plan, with a "what's at home" step
+
+| | Task |
+|---|---|
+| [C] | **Pick the range:** *Lista z planu*, by default the planned days from today; any subset of days can be picked. |
+| [C] | **Calculation** (RPC `plan_shopping_preview(from, to)`): sums the ingredients of all planned meals in the range, scaled by the total servings from M8. It merges the same ingredient across recipes and converts units where possible (g/kg, ml/l, szt.), then compares with the pantry and with what is already on the list. |
+| [C] | **"What's at home" step:** a checklist sheet before anything is added. Every needed ingredient shows the needed amount and the pantry amount. Ingredients the pantry clearly covers start **unchecked**, as "w domu". Everything else starts checked, and spices and staples ("sól", "pieprz", "oliwa") start unchecked. Tap to flip any line. The button says the result: *Dodaj 14 do listy*. |
+| [C] | **Adding:** merges with items already on the list (the amount is increased, not duplicated), keeps a link to the plan for "z planu" grouping, and Undo removes the whole batch. |
+
+**Done when:** one shop for a 4-day plan is done from the generated list, with nothing added by hand that the plan should have covered and nothing bought that was already at home.
 
 ---
 
