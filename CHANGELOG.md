@@ -1,5 +1,16 @@
 # Changelog
 
+## M7.1 · Multi-line paste — 2026-11-19
+
+Pasting text with line breaks (from Notes or a chat) now creates one entry per line instead of one long item.
+- **Where:** the shopping list add field (L1), the pantry add sheet (P3), the recipe editor's *Dodaj składnik* field and an empty step (R3).
+- **Lines:** empty lines are dropped; bullets and numbers are stripped (`-`, `–`, `•`, `*`, `1.`, `1)`, `(1)`, `[ ]`, `[x]`, `☐`). Each line goes through `parseItem()`, so "mąka 0,5 kg" keeps its amount and unit.
+- **Preview:** more than one line opens a sheet where any line can be removed; the button names the result (*Dodaj 7 pozycji*). One undo removes the whole batch and restores items that were merged into.
+- **Steps:** a single pasted paragraph shows *Podziel na N kroków* under the step, which splits it by sentence (a sentence ends before a capital letter, so "ok. 5 min" stays whole).
+- A single-line paste is untouched (the browser pastes it as before).
+- New `js/paste.js`; `openSheet` got a `stack` option so the preview opens over the editor or the pantry sheet instead of closing it. `splitLines`, `splitSentences` and `stripMarker` in `js/parse.js` with 22 new tests in `tests/parse.html`.
+- `sw.js` cache `kitchen-v7`.
+
 ## v1.0.0 · M7 Release v1 — 2026-11-16
 
 First release for everyday use: shopping list, pantry and recipes, shared live between two phones.

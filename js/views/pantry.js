@@ -12,6 +12,7 @@ import { state, insertRow, updateRow, deleteRow, byId } from "../store.js";
 import { header, setEyebrow, settingsButton, registerView, on } from "../shell.js";
 import { parseItem, nameKey, toNumber } from "../parse.js";
 import { catById, catName, unitCodes, unitChipsHtml, bindUnitChips, categoryFieldHtml, bindCategoryField } from "../pickers.js";
+import { onMultiPaste, previewBatch, snapshot, undoBatch, batchToast } from "../paste.js";
 import { addToList, guessCategory, learnRule } from "./list.js";
 
 let query = "";
@@ -256,6 +257,23 @@ function openAdd(prefill = "") {
       };
       bindCategoryField(sheet, null, (id) => { manual = true; categoryId = id; });
       form.text.addEventListener("input", refresh);
+      // Several lines pasted: one pantry item per line, after a preview.
+      onMultiPaste(form.text, (lines) => {
+        const parsedLines = lines.map((l) => parseItem(l, unitCodes()));
+        previewBatch({
+          entries: parsedLines.map((p) => ({ text: p.name, sub: fmtAmount(p.amount, p.unit) })),
+          buttonKey: "paste_add_items",
+          onConfirm(kept) {
+            const snap = snapshot("pantry");
+            close();
+            for (const i of kept) {
+              const p = parsedLines[i];
+              addToPantry({ name: p.name.slice(0, 120), amount: p.amount, unit: p.unit, categoryId: manual ? categoryId : guessCategory(p.name), quiet: true });
+            }
+            batchToast("paste_added_items", kept.length, () => undoBatch("pantry", snap, ["amount", "unit", "low", "categoryId"]));
+          }
+        });
+      });
       refresh();
       form.addEventListener("submit", (e) => {
         e.preventDefault();
@@ -270,7 +288,7 @@ function openAdd(prefill = "") {
 
 // A name that is already in the pantry gets the amount added (same unit, or no amount yet) instead
 // of a second row, like move_checked_to_pantry does for bought items.
-function addToPantry({ name, amount, unit, categoryId }) {
+function addToPantry({ name, amount, unit, categoryId, quiet = false }) {
   const key = nameKey(name);
   const hit = state.pantry.find((p) => nameKey(p.name) === key);
   if (hit) {
@@ -283,14 +301,14 @@ function addToPantry({ name, amount, unit, categoryId }) {
     if (!hit.categoryId && categoryId) patch.categoryId = categoryId;
     if (Object.keys(patch).length) updateRow("pantry", hit.id, patch);
     flashId = hit.id;
-    toast(t(Object.keys(patch).length ? "pantry_more" : "pantry_already", { name: hit.name }));
+    if (!quiet) toast(t(Object.keys(patch).length ? "pantry_more" : "pantry_already", { name: hit.name }));
     return;
   }
   const res = insertRow("pantry", {
     name, amount, unit: amount != null ? unit : null, categoryId: categoryId || null,
     bestBefore: null, bestBeforePrecision: "day", low: false, note: null
   });
-  toast(t("pantry_added", { name }));
+  if (!quiet) toast(t("pantry_added", { name }));
   if (categoryId) learnFromAdd(name, categoryId);
   query = ""; chip = "";
   const input = document.querySelector("[data-search]");

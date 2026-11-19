@@ -297,6 +297,19 @@ export default {
   meal_dinner: "Kolacja",
   meal_snack: "Przekąska",
 
+  // Multi-line paste (M7.1)
+  paste_title: "Wklejony tekst",
+  paste_hint: "Usuń linie, których nie chcesz.",
+  paste_remove: "Usuń „{name}”",
+  paste_add_items: ["Dodaj {n} pozycję", "Dodaj {n} pozycje", "Dodaj {n} pozycji"],
+  paste_add_ingredients: ["Dodaj {n} składnik", "Dodaj {n} składniki", "Dodaj {n} składników"],
+  paste_add_steps: ["Dodaj {n} krok", "Dodaj {n} kroki", "Dodaj {n} kroków"],
+  paste_split_to: ["Podziel na {n} krok", "Podziel na {n} kroki", "Podziel na {n} kroków"],
+  paste_added_items: ["Dodano {n} pozycję", "Dodano {n} pozycje", "Dodano {n} pozycji"],
+  paste_added_ingredients: ["Dodano {n} składnik", "Dodano {n} składniki", "Dodano {n} składników"],
+  paste_added_steps: ["Dodano {n} krok", "Dodano {n} kroki", "Dodano {n} kroków"],
+  paste_split: "Podziel na kroki",
+
   // Short month names for dates ("20 lis", "lis 2026")
   months_long: ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"],
   months_short: ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
