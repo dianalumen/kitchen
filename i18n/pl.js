@@ -333,6 +333,24 @@ export default {
   macro_c_lbl: "Węglowodany, g",
   macro_fib_lbl: "Błonnik, g",
 
+  // Macro estimates from the foods table (v1.1, M7.3)
+  macro_missing: ["{n} składnik bez danych", "{n} składniki bez danych", "{n} składników bez danych"],
+  macro_foods: "Produkty",
+  macro_foods_est: "Szacunek z produktów: ok. {n} kcal na porcję",
+  macro_foods_none: "Dodaj ilości, żeby policzyć szacunek",
+  macro_foods_typed: "Wpisane liczby mają pierwszeństwo przed szacunkiem",
+  macro_matched: ["{n} dopasowany", "{n} dopasowane", "{n} dopasowanych"],
+  macro_no_food: "Bez danych",
+  macro_no_amount: "bez ilości",
+  macro_pick: "Wybierz",
+  macro_change: "Zmień",
+  macro_pick_for: "Wybierz produkt dla: {name}",
+  food_title: "Produkt",
+  food_search: "Szukaj produktu",
+  food_auto: "Dopasuj po nazwie",
+  food_none: "Nic nie pasuje do „{q}”",
+  food_per100: "{n} kcal w 100 g",
+
   // Short month names for dates ("20 lis", "lis 2026")
   months_long: ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"],
   months_short: ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]

@@ -3,6 +3,7 @@
 usage:
   python3 -I tools/import_dietitian.py supabase/seed/dietitian-plan.html            # dry run
   python3 -I tools/import_dietitian.py supabase/seed/dietitian-plan.html --write    # also writes the SQL
+  python3 -I tools/import_dietitian.py supabase/seed/dietitian-plan.html --json     # meals for tests/macros.html
 
 The input is a saved copy of the meal-plan page. It holds `window.JL_DATA` (days, and 28 meals
 with id "<day>-<slot>", macros `m` = [kcal, protein, fat, carbs, fiber] and dishes `d`) and a
@@ -24,6 +25,8 @@ import argparse, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_PATH = os.path.join(HERE, "..", "supabase", "seed", "dietitian_import.sql")
+# The 28 meals with the dietitian's macros, for the M7.3 accuracy check in tests/macros.html.
+JSON_PATH = os.path.join(HERE, "..", "supabase", "seed", "dietitian_meals.json")
 
 MEAL_TYPE = {"sn": "breakfast", "ds": "snack", "ob": "lunch", "ko": "dinner"}
 SLOT_ORDER = ["sn", "ds", "ob", "ko"]
@@ -340,6 +343,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("page", help="saved copy of the meal-plan page (.html), e.g. supabase/seed/dietitian-plan.html")
     ap.add_argument("--write", action="store_true", help="write supabase/seed/dietitian_import.sql")
+    ap.add_argument("--json", action="store_true", help="write supabase/seed/dietitian_meals.json (accuracy check)")
     ap.add_argument("--samples", type=int, default=2, help="sample recipes shown in the dry run (default 2)")
     a = ap.parse_args()
 
@@ -381,6 +385,16 @@ def main():
         print("\nwritten:", os.path.relpath(OUT_PATH), "(git-ignored; contains personal health data)")
     else:
         print("\n(dry run: nothing written; add --write to generate the SQL)")
+    if a.json:
+        meals = [dict(key=r["key"], title=r["title"], servings=1, kcal=r["kcal"], proteinG=r["protein_g"], fatG=r["fat_g"],
+                      carbsG=r["carbs_g"], fiberG=r["fiber_g"],
+                      ingredients=[dict(name=i["name"], amount=i["amount"], unit=i["unit"], grams=i["grams"],
+                                        section=i["section"], note=i["note"]) for i in r["ingredients"]])
+                 for r in recipes]
+        os.makedirs(os.path.dirname(JSON_PATH), exist_ok=True)
+        with open(JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(meals, f, ensure_ascii=False, indent=1)
+        print("written:", os.path.relpath(JSON_PATH), "(git-ignored; contains personal health data)")
 
 
 if __name__ == "__main__":

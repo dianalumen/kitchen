@@ -19,6 +19,7 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | v1.1: M7.1–M7.3 | planned 2026-11-19: multi-line paste, dietitian recipes with macros, macro estimates for other recipes |
 | M7.1 Multi-line paste | ✅ merged 2026-11-20; [D] phone test pending |
 | M7.2 Dietitian recipes | ✅ done: merged 2026-11-20, schema applied and 28 recipes imported in Supabase 2026-11-20 |
+| M7.3 Macro estimates | ✅ merged 2026-11-20 (185 foods from USDA and CIQUAL, 26/28 dietitian meals within 10%); `schema.sql` and `foods.sql` applied in Supabase 2026-11-20 |
 | M8–M9 (v2) | pending, after v1.1 |
 
 ### How milestones run

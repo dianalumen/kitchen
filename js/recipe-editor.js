@@ -16,8 +16,9 @@ import { unitCodes } from "./pickers.js";
 import { initDrag } from "./drag.js";
 import {
   MEALS, mealGlyph, ingredientsOf, stepsOf, saveRecipe, deleteRecipe, photoUrl, newPhotoPath, keepLocal, resizeImage, photoError,
-  MACRO_KEYS
+  MACRO_KEYS, gramsFor
 } from "./recipes-data.js";
+import { estimateRecipe, matchFood, normName } from "./macros.js";
 
 let seq = 0;
 const key = () => "n" + ++seq;
@@ -61,7 +62,7 @@ function draftFrom(id) {
     let sec = null;
     for (const i of ingredientsOf(id)) {
       if ((i.section || null) !== sec) { sec = i.section || null; if (sec) rows.push({ k: key(), kind: "sec", text: sec }); }
-      rows.push({ k: key(), kind: "ing", id: i.id, text: nameText(i.name, i.note), qty: qtyText(i.amount, i.unit) });
+      rows.push({ k: key(), kind: "ing", id: i.id, text: nameText(i.name, i.note), qty: qtyText(i.amount, i.unit), foodId: i.foodId });
     }
   }
   return {
@@ -102,7 +103,8 @@ function macrosHtml(d) {
     '<div class="emacros" data-macros>' + MACRO_KEYS.map((k) =>
       '<div><label class="lbl" for="e-m-' + k + '">' + esc(t(MACRO_LBL[k])) + "</label>" +
       '<input class="fld" id="e-m-' + k + '" data-macro="' + k + '" inputmode="decimal" maxlength="7" autocomplete="off" value="' + esc(d.macros[k]) + '"></div>').join("") +
-    "</div></section>";
+    "</div>" +
+    '<div class="efoodsbox" data-foods></div></section>';
 }
 
 // Draft text → { kcal, proteinG, …, macrosSource } for saveRecipe.
@@ -118,7 +120,95 @@ function macrosToSave(d) {
   return out;
 }
 
-export function openEditor(id, restored = null) {
+// The draft's ingredient rows as ingredients: { k, id, name, note, amount, unit, section, foodId }.
+function draftIngredients(d) {
+  let section = null;
+  const out = [];
+  for (const r of d.rows) {
+    if (r.kind === "sec") { section = r.text.replace(/\s+/g, " ").trim().slice(0, 60) || null; continue; }
+    const { name, note } = splitName(r.text);
+    if (!name) continue;
+    const q = parseQty(r.qty);
+    out.push({ k: r.k, id: r.id, name, note, amount: q.amount, unit: q.unit, section, foodId: r.foodId });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Produkty (M7.3): which food each ingredient counts as for the macro estimate, live from the
+// draft. Ingredients without a food or a weight come first, each with a picker; the matched ones
+// fold under "12 dopasowanych". Not shown for the dietitian's recipes (exact numbers) or before
+// the foods table has loaded.
+// ---------------------------------------------------------------------------
+function foodsEstimate(d) {
+  const ings = draftIngredients(d).map((i) => {
+    const old = i.id ? state.ingredients.find((x) => x.id === i.id) : null;
+    return { ...i, grams: gramsFor(old, i.amount, i.unit) };
+  });
+  return estimateRecipe({ servings: d.servings }, ings, state.foods);
+}
+
+function foodsHtml(d, open) {
+  if (!state.foods.length) return "";
+  const src = d.isNew ? null : (byId("recipes", d.id) || {}).macrosSource;
+  if (src === "dietitian") return "";
+  const e = foodsEstimate(d);
+  if (!e.rows.length) return "";
+  const lacking = (row) => !row.food || (row.grams == null && !row.food.trace);
+  const bad = e.rows.filter(lacking), good = e.rows.filter((row) => !lacking(row));
+  const rowHtml = ({ ing, food, grams }) => {
+    const sub = food ? food.name + (grams == null && !food.trace ? ", " + t("macro_no_amount") : "") : t("macro_no_food");
+    return '<button type="button" class="rowbtn efood" data-food-k="' + esc(ing.k) + '" aria-label="' + esc(t("macro_pick_for", { name: ing.name })) + '">' +
+      '<span class="nm">' + esc(ing.name) + '<span class="sub">' + esc(sub) + "</span></span>" +
+      '<span class="val">' + esc(t(food ? "macro_change" : "macro_pick")) + "</span></button>";
+  };
+  const typed = MACRO_KEYS.some((k) => String(d.macros[k] || "").trim());
+  return '<div class="sechead"><h2>' + esc(t("macro_foods")) + "</h2><span>" + good.length + "/" + e.rows.length + "</span></div>" +
+    '<p class="hint">' + esc(e.counted ? t("macro_foods_est", { n: Math.round(e.kcal) }) : t("macro_foods_none")) +
+    (typed ? ". " + esc(t("macro_foods_typed")) : "") + "</p>" +
+    (bad.length ? '<div class="group">' + bad.map(rowHtml).join("") + "</div>" : "") +
+    (good.length ? '<details class="efoods"' + (open || !bad.length ? " open" : "") + "><summary>" + esc(t("macro_matched", { n: good.length })) + "</summary>" +
+      '<div class="group">' + good.map(rowHtml).join("") + "</div></details>" : "");
+}
+
+// Food picker: "Dopasuj po nazwie" (no manual pick) or any food, with search. onPick(id | null).
+function openFoodPicker(ing, onPick) {
+  const auto = matchFood(ing.name, state.foods, ing.note);
+  const byName = [...state.foods].sort((a, b) => a.name.localeCompare(b.name, "pl"));
+  const keys = new Map(byName.map((f) => [f.id, normName([f.name, ...(f.aliases || [])].join(" | "))]));
+  const opt = (id, name, sub, on) => '<button type="button" class="rowbtn" role="radio" data-food="' + esc(id) + '" aria-checked="' + on + '">' +
+    '<span class="nm">' + esc(name) + (sub ? '<span class="sub">' + esc(sub) + "</span>" : "") + "</span>" + (on ? icon("check", "sel") : "") + "</button>";
+  const list = (q) => {
+    const k = normName(q);
+    const hits = k ? byName.filter((f) => keys.get(f.id).includes(k))
+      .sort((a, b) => Number(!normName(a.name).startsWith(k)) - Number(!normName(b.name).startsWith(k))) : byName;
+    const first = k ? "" : opt("", t("food_auto"), auto ? auto.name : t("macro_no_food"), !ing.foodId);
+    const rows = hits.map((f) => opt(f.id, f.name, t("food_per100", { n: Math.round(f.kcal) }), f.id === ing.foodId)).join("");
+    return first + rows || '<p class="hint">' + esc(t("food_none", { q: q.trim() })) + "</p>";
+  };
+  openSheet({
+    title: t("food_title"),
+    label: t("macro_pick_for", { name: ing.name }),
+    tall: true,
+    stack: true,
+    body: '<div class="stack" style="gap:12px"><p class="hint">' + esc(ing.name) + "</p>" +
+      '<label class="note">' + icon("search") + '<input type="search" data-food-q placeholder="' + esc(t("food_search")) + '" aria-label="' + esc(t("food_search")) +
+      '" enterkeyhint="search" autocomplete="off"></label>' +
+      '<div class="group" role="radiogroup" aria-label="' + esc(t("food_title")) + '" data-food-list>' + list("") + "</div></div>",
+    onMount(sheet, close) {
+      const box = sheet.querySelector("[data-food-list]");
+      sheet.querySelector("[data-food-q]").addEventListener("input", (e) => { box.innerHTML = list(e.target.value); box.scrollTop = 0; });
+      box.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-food]");
+        if (!b) return;
+        close();
+        onPick(b.dataset.food || null);
+      });
+    }
+  });
+}
+
+export function openEditor(id, restored = null, focus = null) {
   if (id && !byId("recipes", id)) return;
   const d = restored || draftFrom(id);
   const start = JSON.stringify(restored ? draftFrom(id) : d);
@@ -200,10 +290,31 @@ export function openEditor(id, restored = null) {
         sheet.querySelector("[data-step-n]").textContent = d.steps.length ? String(d.steps.length) : "";
       };
       const grow = (ta) => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + 2 + "px"; };
-      const paintRows = () => { rowsBox.innerHTML = d.rows.map(rowHtml).join(""); counts(); };
+      // Produkty block (M7.3): repainted when ingredients, amounts or servings change.
+      const foodsBox = sheet.querySelector("[data-foods]");
+      let foodsOpen = false, foodsTimer = 0;
+      const paintFoods = () => { clearTimeout(foodsTimer); foodsBox.innerHTML = foodsHtml(d, foodsOpen); };
+      const paintFoodsSoon = () => { clearTimeout(foodsTimer); foodsTimer = setTimeout(paintFoods, 300); };
+      foodsBox.addEventListener("toggle", (e) => { if (e.target.matches("details")) foodsOpen = e.target.open; }, true);
+      foodsBox.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-food-k]");
+        if (!b) return;
+        const ing = draftIngredients(d).find((i) => i.k === b.dataset.foodK);
+        const row = d.rows.find((r) => r.k === b.dataset.foodK);
+        if (!ing || !row) return;
+        openFoodPicker(ing, (foodId) => {
+          row.foodId = foodId;
+          paintFoods();
+          const again = foodsBox.querySelector('[data-food-k="' + row.k + '"]');
+          if (again) again.focus({ preventScroll: true });
+        });
+      });
+      const paintRows = () => { rowsBox.innerHTML = d.rows.map(rowHtml).join(""); counts(); paintFoods(); };
       const paintSteps = () => { stepsBox.innerHTML = d.steps.map(stepHtml).join(""); stepsBox.querySelectorAll("textarea").forEach(grow); counts(); };
       paintRows();
       paintSteps();
+      // Opened from "2 składniki bez danych" in R2: show the Produkty block.
+      if (focus === "foods" && foodsBox.firstChild) requestAnimationFrame(() => foodsBox.scrollIntoView({ block: "start" }));
       // The sheet may not be laid out yet on the first paint; size the step boxes once it is.
       requestAnimationFrame(() => stepsBox.querySelectorAll("textarea").forEach(grow));
 
@@ -256,6 +367,7 @@ export function openEditor(id, restored = null) {
         const b = e.target.closest("[data-serv]");
         if (!b) return;
         d.servings = Math.min(100, Math.max(1, d.servings + Number(b.dataset.serv)));
+        paintFoods();
         const box = sheet.querySelector("[data-servbox]");
         box.innerHTML = servHtml();
         const again = box.querySelector('[data-serv="' + b.dataset.serv + '"]');
@@ -267,6 +379,7 @@ export function openEditor(id, restored = null) {
       rowsBox.addEventListener("input", (e) => {
         const row = rowOf(e.target, d.rows);
         if (row) row[e.target.dataset.f] = e.target.value;
+        paintFoodsSoon();
       });
       // Tidy the amount when leaving the field: "150g" → "150 g", "1,50 łyżki" → "1,5 łyżka".
       rowsBox.addEventListener("change", (e) => {
@@ -441,6 +554,7 @@ export function openEditor(id, restored = null) {
         const v = e.target.value.replace(/\./g, ",").replace(/[^\d,]/g, "").replace(/(,.*),/g, "$1");
         if (v !== e.target.value) e.target.value = v;
         d.macros[k] = v;
+        paintFoodsSoon();
       });
 
       // Save
@@ -456,15 +570,7 @@ export function openEditor(id, restored = null) {
         let src = d.sourceUrl.trim();
         if (src && !/^https?:\/\//i.test(src)) src = "https://" + src;
         if (src.length > 2000 || /\s/.test(src)) src = "";
-        let section = null;
-        const ingredients = [];
-        for (const r of d.rows) {
-          if (r.kind === "sec") { section = r.text.replace(/\s+/g, " ").trim().slice(0, 60) || null; continue; }
-          const { name, note } = splitName(r.text);
-          if (!name) continue;
-          const q = parseQty(r.qty);
-          ingredients.push({ id: r.id, name, note, amount: q.amount, unit: q.unit, section });
-        }
+        const ingredients = draftIngredients(d).map(({ k, ...i }) => i);
         const steps = d.steps
           .map((s) => ({ id: s.id, text: s.text.trim().slice(0, 4000), timerMinutes: Math.min(1440, Number(s.timer) || 0) || null }))
           .filter((s) => s.text);

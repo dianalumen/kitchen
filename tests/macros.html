@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Macro tests</title>
+<style>
+  body{font:15px/1.4 system-ui,sans-serif;margin:16px;background:#fff;color:#141414}
+  @media (prefers-color-scheme: dark){body{background:#121211;color:#F2F0EA}}
+  h1{font-size:20px} h2{font-size:17px;margin-top:28px} .ok{color:#2e7d32} .bad{color:#C8323A;font-weight:600} code{font-size:13px}
+  li{margin:2px 0} table{border-collapse:collapse;font-size:13px} td,th{padding:3px 8px;border-bottom:1px solid #8884;text-align:right}
+  td:nth-child(2),th:nth-child(2){text-align:left} .muted{opacity:.7}
+</style>
+</head>
+<body>
+<!-- Not deployed (not in the Pages allow-list). Open http://localhost:8000/tests/macros.html
+     The accuracy check needs supabase/seed/dietitian_meals.json (git-ignored, personal data):
+     python3 -I tools/import_dietitian.py <saved plan page> --json -->
+<h1 id="sum">Running…</h1>
+<ul id="out"></ul>
+<h2>Accuracy: estimates of the dietitian's meals</h2>
+<div id="acc" class="muted">Loading supabase/seed/dietitian_meals.json…</div>
+<script type="module">
+import { normName, matchFood, gramsOf, batchOf, estimateRecipe } from "../js/macros.js";
+import { FOODS } from "../js/foods-data.js";
+
+const results = [];
+const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function check(label, got, want) { results.push({ label, ok: eq(got, want), got, want }); }
+const M = (name) => { const f = matchFood(name, FOODS); return f ? f.id : null; };
+const food = (id) => FOODS.find((f) => f.id === id);
+
+// normName
+check("norm: diacritics, case, brackets", normName("Mielona Słodka papryka (suszona), 1,5%"), "mielona slodka papryka suszona 1 5");
+
+// matchFood: longest run of whole words wins
+check("match: exact name", M("Cukinia"), "zucchini");
+check("match: inside a longer name", M("Filet z piersi kurczaka zagrodowy"), "chicken-breast");
+check("match: longer alias beats shorter", M("Mielona słodka papryka"), "paprika");
+check("match: fresh pepper", M("Papryka czerwona"), "bell-pepper");
+check("match: jarred pepper", M("Papryka pieczona ze słoika"), "roasted-pepper");
+check("match: chili", M("Mielona papryka chili"), "chili");
+check("match: brackets", M("Bazylia (suszona)"), "basil-dried");
+check("match: fresh basil", M("Bazylia (świeża)"), "basil");
+check("match: frozen spinach", M("Szpinak mrożony"), "spinach-frozen");
+check("match: oil kind", M("Olej lniany"), "flax-oil");
+check("match: peanut butter is not butter", M("Masło orzechowe"), "peanut-butter");
+check("match: amount inside the name", M("Ogórki kiszone 4 szt"), "pickle-sour");
+check("match: lactose-free milk", M("Mleko bez laktozy 1,5%"), "milk-lactose-free");
+check("match: plain milk", M("Mleko"), "milk-2");
+check("match: no diacritics typed", M("maslo"), "butter");
+check("match: the note makes it longer", matchFood("Dynia", FOODS, "pestki łuskane, 1 łyżka").id, "pumpkin-seeds");
+check("match: a note alone does not match", matchFood("Zupa", FOODS, "z pestkami dyni"), null);
+check("match: a note without a food keeps the name's match", matchFood("Dynia", FOODS, "0,25 szt.").id, "squash");
+check("match: unknown", M("Zupa dnia"), null);
+check("match: word, not substring", M("Serwetki"), null);
+
+// gramsOf
+check("grams: stored grams first", gramsOf({ grams: 61, amount: 1, unit: "szt" }, food("tortilla-ww")), 61);
+check("grams: g", gramsOf({ amount: 150, unit: "g" }, food("rice-white")), 150);
+check("grams: dag", gramsOf({ amount: 2, unit: "dag" }, food("rice-white")), 20);
+check("grams: kg", gramsOf({ amount: 0.5, unit: "kg" }, food("flour")), 500);
+check("grams: szt from the source", gramsOf({ amount: 2, unit: "szt" }, food("egg")), 2 * food("egg").units.szt);
+check("grams: no unit counts as szt", gramsOf({ amount: 2, unit: null }, food("egg")), 2 * food("egg").units.szt);
+check("grams: ml via density", gramsOf({ amount: 100, unit: "ml" }, food("olive-oil")), 100 * food("olive-oil").units.ml);
+check("grams: l via density", gramsOf({ amount: 1, unit: "l" }, food("milk-2")), 1000 * food("milk-2").units.ml);
+check("grams: unknown unit", gramsOf({ amount: 1, unit: "opak" }, food("egg")), null);
+check("grams: no amount", gramsOf({ amount: null, unit: null }, food("egg")), null);
+
+// batchOf
+check("batch: Na 5 porcji", batchOf("Na 5 porcji"), 5);
+check("batch: side dish", batchOf("Brownie, na 2,5 porcji"), 2.5);
+check("batch: plain section", batchOf("Sos"), 1);
+
+// estimateRecipe
+const e1 = estimateRecipe({ servings: 2 }, [
+  { name: "Ryż", amount: 200, unit: "g" },
+  { name: "Sól", amount: null, unit: "szczypta" },
+  { name: "Krewetki", amount: null, unit: null },
+  { name: "Coś dziwnego", amount: 1, unit: "szt" }
+], FOODS);
+check("estimate: per serving", e1.kcal, Math.round(food("rice-white").kcal * 2 / 2 * 10) / 10);
+check("estimate: salt without amount is not missing", e1.missing.map((i) => i.name), ["Krewetki", "Coś dziwnego"]);
+check("estimate: counted", e1.counted, 1);
+const e2 = estimateRecipe({ servings: 1 }, [{ name: "Ser", foodId: "feta", amount: 100, unit: "g" }], FOODS);
+check("estimate: a hand-picked food wins", e2.kcal, food("feta").kcal);
+const e3 = estimateRecipe({ servings: 1 }, [{ name: "Masło", amount: 50, unit: "g", section: "Na 5 porcji" }], FOODS);
+check("estimate: batch section is divided", e3.kcal, Math.round(food("butter").kcal * 0.5 / 5 * 10) / 10);
+check("estimate: no foods loaded", estimateRecipe({ servings: 1 }, [{ name: "Ryż", amount: 1, unit: "g" }], []).missing.length, 1);
+
+const bad = results.filter((r) => !r.ok);
+document.getElementById("sum").textContent = (results.length - bad.length) + "/" + results.length + " pass";
+document.getElementById("sum").className = bad.length ? "bad" : "ok";
+document.getElementById("out").innerHTML = results.map((r) =>
+  '<li class="' + (r.ok ? "ok" : "bad") + '">' + (r.ok ? "PASS " : "FAIL ") + r.label +
+  (r.ok ? "" : " <code>got " + JSON.stringify(r.got) + " want " + JSON.stringify(r.want) + "</code>") + "</li>").join("");
+
+// Accuracy check (IMPLEMENTATION-PLAN M7.3): kcal within 10% for at least 24 of 28 meals.
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+try {
+  const res = await fetch("../supabase/seed/dietitian_meals.json", { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const meals = await res.json();
+  const rows = meals.map((m) => {
+    const e = estimateRecipe(m, m.ingredients, FOODS);
+    const d = (e.kcal - m.kcal) / m.kcal * 100;
+    return { m, e, d };
+  });
+  const within = rows.filter((r) => Math.abs(r.d) <= 10).length;
+  const unmatched = rows.flatMap((r) => r.e.missing.map((i) => i.name));
+  const f = (n) => (n == null ? "–" : Math.round(n));
+  window.ACCURACY = rows.map((r) => ({ key: r.m.key, title: r.m.title, kcal: r.m.kcal, est: r.e.kcal, diff: Math.round(r.d * 10) / 10,
+    p: [r.m.proteinG, r.e.proteinG], f: [r.m.fatG, r.e.fatG], c: [r.m.carbsG, r.e.carbsG], fib: [r.m.fiberG, r.e.fiberG],
+    missing: r.e.missing.map((i) => i.name) }));
+  window.ACCURACY_SUMMARY = { within, total: rows.length, unmatched };
+  document.getElementById("acc").className = "";
+  document.getElementById("acc").innerHTML =
+    '<p class="' + (within >= 24 ? "ok" : "bad") + '">kcal within 10%: ' + within + "/" + rows.length + " (target 24/28)</p>" +
+    (unmatched.length ? '<p class="bad">No data: ' + esc(unmatched.join(", ")) + "</p>" : '<p class="ok">Every ingredient has data.</p>') +
+    "<table><tr><th>meal</th><th>title</th><th>kcal</th><th>est.</th><th>diff</th><th>B</th><th>T</th><th>W</th><th>Bł</th></tr>" +
+    rows.map((r) => '<tr class="' + (Math.abs(r.d) <= 10 ? "" : "bad") + '"><td>' + esc(r.m.key) + "</td><td>" + esc(r.m.title) + "</td><td>" +
+      f(r.m.kcal) + "</td><td>" + f(r.e.kcal) + "</td><td>" + (r.d > 0 ? "+" : "") + r.d.toFixed(1) + "%</td>" +
+      [["proteinG"], ["fatG"], ["carbsG"], ["fiberG"]].map(([k]) => "<td>" + f(r.m[k]) + "/" + f(r.e[k]) + "</td>").join("") + "</tr>").join("") +
+    "</table>";
+} catch (err) {
+  document.getElementById("acc").textContent = "Skipped: no supabase/seed/dietitian_meals.json (" + err.message + ").";
+}
+</script>
+</body>
+</html>
