@@ -36,7 +36,8 @@ export const TABLES = {
 // ---------------------------------------------------------------------------
 const camel = (k) => k.replace(/_([a-z])/g, (m, c) => c.toUpperCase());
 const snake = (k) => k.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
-const NUMERIC = new Set(["amount"]);
+// Postgres numeric comes back as a string; these become JS numbers.
+const NUMERIC = new Set(["amount", "grams", "kcal", "protein_g", "fat_g", "carbs_g", "fiber_g"]);
 export const IMAGE_BUCKET = "recipe-images";
 // Never written by the client: generated columns, defaults and trigger-maintained columns.
 const READ_ONLY = new Set(["nameKey", "keywordKey", "householdId", "updatedAt", "checkedAt"]);

@@ -9,7 +9,28 @@ Pasting text with line breaks (from Notes or a chat) now creates one entry per l
 - **Steps:** a single pasted paragraph shows *Podziel na N kroków* under the step, which splits it by sentence (a sentence ends before a capital letter, so "ok. 5 min" stays whole).
 - A single-line paste is untouched (the browser pastes it as before).
 - New `js/paste.js`; `openSheet` got a `stack` option so the preview opens over the editor or the pantry sheet instead of closing it. `splitLines`, `splitSentences` and `stripMarker` in `js/parse.js` with 22 new tests in `tests/parse.html`.
-- `sw.js` cache `kitchen-v7`.
+
+## M7.2 · Dietitian recipes with macros — 2026-11-19 (on branch, not merged)
+
+**Schema** (`supabase/schema.sql`, idempotent `alter table … add column if not exists`):
+- `recipes`: `kcal`, `protein_g`, `fat_g`, `carbs_g`, `fiber_g` per serving (numeric, nullable, range checks) and `macros_source` (`'dietitian'` or `'estimated'`; a source needs `kcal`).
+- `recipe_ingredients.grams` (numeric, nullable, above 0): the weight for macro math, next to amount and unit.
+- `tests.sql` step "8b macros": both members read and write the new columns, the outsider cannot, and every check constraint rejects bad values. 205/205 pass in a throwaway local Postgres, both on a fresh database and after upgrading a v1.0 database (the file run twice).
+
+**Import** `tools/import_dietitian.py <saved page> [--write]`: dry run by default; `--write` generates `supabase/seed/dietitian_import.sql`. Everything in `supabase/seed/` except its README is now git-ignored.
+- One recipe per meal, the current version of each meal (the user's swap when there is one, otherwise the original), so the dietitian's macros stay exact. The user's own notes on the page are not read.
+- The title is the main dish (the first one that names a protein, otherwise the first); side dishes become ingredient sections, and their steps follow the main dish's steps, the first one starting with the dish name. Plain foods with no cooking get all their names in the title.
+- Tag `Dietetyk`, servings 1, `macros_source = 'dietitian'`, time = the longest dish, dish notes in `notes` (a batch dish keeps "na 5 porcji" as its section and its note).
+- Every ingredient keeps its grams. A countable household measure (szt., ząbek, kromka, plaster) that is a whole or half number becomes amount + unit; otherwise the amount is the grams and the measure goes into the note ("Oliwa z oliwek 5 g, 0,5 łyżki"). "Łosoś, świeży" splits into name and note, as in the editor.
+- Dry run: 28 recipes (7 per meal type, 18 from the user's swaps), 258 ingredients (all with grams; 57 with a household measure as the amount), 100 steps.
+- The SQL takes the invite code at the top, runs in one transaction, and checks that the macros columns exist. A recipe that already exists is skipped together with its ingredients and steps, so a second run adds nothing and edits made in the app are kept. Verified in a throwaway Postgres loaded with `schema.sql`: 28/258/100 rows, a second run and a lowercase code with a dash add 0, a deleted ingredient does not come back, a wrong code rolls back with an error, and `add_recipe_to_list` works on an imported recipe.
+
+**UI:**
+- R1: a *Dietetyk* chip after the meal-type chips (only when a recipe has the tag). It combines with a meal type; *Wszystkie* clears both.
+- R2: under the title, kcal for the chosen servings ("548 kcal", or "ok. 480 kcal" for estimated numbers) with a small *Dietetyk* label, then B, T, W and Bł tiles in grams; all scale with the servings stepper. The recipe's notes show as *Uwagi* after the steps.
+- R3: a *Makro na porcję* section with five number fields. Unchanged numbers keep their source; changed or new ones are saved as estimated. An ingredient's grams follow a changed amount (g, dag, kg convert; the same household unit scales the old grams; anything else clears them).
+- `?demo` has three made-up dietitian-style recipes (breakfast, lunch with two side dishes, snack with a note).
+- `sw.js` cache `kitchen-v8` (M7.1 and M7.2 merged together).
 
 ## v1.0.0 · M7 Release v1 — 2026-11-16
 

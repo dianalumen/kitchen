@@ -13,12 +13,14 @@ import { state, byId } from "../store.js";
 import { header, setEyebrow, settingsButton, registerView, go, on } from "../shell.js";
 import { nameKey } from "../parse.js";
 import {
-  MEALS, mealGlyph, haveIt, onList, stepsOf, recipeStats, metaLine, scaled, missingToAdd, addMissingToList, photoUrl
+  MEALS, mealGlyph, haveIt, onList, stepsOf, recipeStats, metaLine, scaled, missingToAdd, addMissingToList, photoUrl,
+  DIET_TAG, isDietitian, macrosFor
 } from "../recipes-data.js";
 import { openEditor } from "../recipe-editor.js";
 
 const collator = new Intl.Collator("pl");
 let meal = "";
+let diet = false; // the Dietetyk chip, on top of the meal type
 let query = "";
 
 // Photo with the glyph tile behind it; a photo that fails to load (offline) is removed, so the
@@ -44,7 +46,8 @@ function mountGrid(root) {
   root.querySelector("[data-search]").addEventListener("input", (e) => { query = e.target.value; paintGrid(root); });
   root.querySelector("[data-chips]").addEventListener("click", (e) => {
     const b = e.target.closest("[data-meal]");
-    if (b) { meal = b.dataset.meal; paintGrid(root); }
+    if (b) { meal = b.dataset.meal; if (!meal) diet = false; paintGrid(root); }
+    if (e.target.closest("[data-diet]")) { diet = !diet; paintGrid(root); }
   });
   dropBrokenImages(root);
   paintGrid(root);
@@ -67,17 +70,24 @@ function paintGrid(root) {
   // Chips: Wszystkie, Śniadanie, Obiad, Kolacja; Przekąska only when a recipe has it.
   const meals = MEALS.filter((m) => m !== "snack" || state.recipes.some((r) => r.mealType === "snack"));
   if (meal && !meals.includes(meal)) meal = "";
+  // Dietetyk: a toggle next to the meal chips, only when some recipe carries the tag.
+  const hasDiet = state.recipes.some(isDietitian);
+  if (!hasDiet) diet = false;
   const chips = root.querySelector("[data-chips]");
-  const sig = meals.join();
+  const sig = meals.join() + (hasDiet ? ",diet" : "");
   if (chips._s !== sig) {
     chips._s = sig;
     chips.innerHTML = ["", ...meals].map((m) =>
-      '<button type="button" class="chip" data-meal="' + m + '" aria-pressed="false">' + esc(t(m ? "meal_" + m : "recipes_all")) + "</button>").join("");
+      '<button type="button" class="chip" data-meal="' + m + '" aria-pressed="false">' + esc(t(m ? "meal_" + m : "recipes_all")) + "</button>").join("") +
+      (hasDiet ? '<button type="button" class="chip" data-diet aria-pressed="false">' + esc(DIET_TAG) + "</button>" : "");
   }
-  chips.querySelectorAll("[data-meal]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.meal === meal)));
+  chips.querySelectorAll("[data-meal]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.meal === meal && (meal !== "" || !diet))));
+  const dietChip = chips.querySelector("[data-diet]");
+  if (dietChip) dietChip.setAttribute("aria-pressed", String(diet));
 
   const q = nameKey(query);
-  const list = state.recipes.filter((r) => (!meal || r.mealType === meal) && matches(r, q)).sort((a, b) => collator.compare(a.title, b.title));
+  const list = state.recipes.filter((r) => (!meal || r.mealType === meal) && (!diet || isDietitian(r)) && matches(r, q))
+    .sort((a, b) => collator.compare(a.title, b.title));
   body.classList.toggle("is-empty", !list.length);
   if (list.length) { sync(body, list.map((r) => ({ key: r.id, html: cardHtml(r) }))); return; }
   let html;
@@ -106,11 +116,12 @@ function mountRecipe(root, [id]) {
   root.innerHTML =
     '<div class="photo" data-photo></div>' +
     '<div data-head></div>' +
+    '<div data-macros></div>' +
     '<div class="serv"><span class="lbl" id="r-serv">' + esc(t("recipe_servings")) + "</span>" +
     '<div class="step sm" role="group" aria-labelledby="r-serv"><button type="button" class="round" data-serv="-1" aria-label="' + esc(t("recipe_fewer")) + '">' + icon("minus") + "</button>" +
     '<span class="v" data-servings aria-live="polite"></span>' +
     '<button type="button" class="round" data-serv="1" aria-label="' + esc(t("recipe_more")) + '">' + icon("plus") + "</button></div></div>" +
-    '<div data-ings></div><div data-steps></div><div data-src></div>' +
+    '<div data-ings></div><div data-steps></div><div data-notes></div><div data-src></div>' +
     '<div class="dock" data-dock></div>';
   root.querySelector(".serv").addEventListener("click", (e) => {
     const b = e.target.closest("[data-serv]");
@@ -137,6 +148,8 @@ function paintRecipe(root) {
   setHtml(root.querySelector("[data-head]"),
     '<div class="eyebrow">' + esc(metaLine(r, false)) + '</div><h1 class="ttl ttl-sm">' + esc(r.title) + "</h1>" +
     (r.description ? '<p class="desc">' + esc(r.description) + "</p>" : ""));
+
+  setHtml(root.querySelector("[data-macros]"), macrosHtml(r, cur.servings));
 
   const sv = root.querySelector("[data-servings]");
   const svText = String(cur.servings);
@@ -170,6 +183,9 @@ function paintRecipe(root) {
         (st.timerMinutes ? ' <span class="tag">' + icon("timer") + esc(t("minutes", { n: st.timerMinutes })) + "</span>" : "") + "</p></li>").join("") + "</ol>"
     : "");
 
+  setHtml(root.querySelector("[data-notes]"), r.notes
+    ? '<div class="sechead"><h2>' + esc(t("recipe_notes")) + '</h2></div><p class="rnotes">' + esc(r.notes) + "</p>" : "");
+
   setHtml(root.querySelector("[data-src]"), r.sourceUrl && /^https?:\/\//i.test(r.sourceUrl)
     ? '<a class="srclink" href="' + esc(r.sourceUrl) + '" target="_blank" rel="noopener noreferrer">' + icon("link") + esc(t("recipe_source")) + "</a>" : "");
 
@@ -182,6 +198,21 @@ function paintRecipe(root) {
   const cook = steps.length ? '<button type="button" class="btn accent" data-act="recipe-cook">' + icon("play") + esc(t("recipe_cook")) + "</button>" : "";
   setHtml(root.querySelector("[data-dock]"), add || cook ? '<div class="in">' + add + cook + "</div>" : "");
   root.querySelector("[data-dock]").hidden = !(add || cook);
+}
+
+// Macros for the chosen servings: "520 kcal" (or "ok. 480 kcal" when estimated), then B, T, W and
+// Bł in grams, and a small Dietetyk label when the numbers are the dietitian's.
+function macrosHtml(r, servings) {
+  const m = macrosFor(r, servings);
+  if (!m) return "";
+  const exact = r.macrosSource === "dietitian";
+  const kcal = t(exact || !r.macrosSource ? "macro_kcal" : "macro_kcal_est", { n: m.kcal });
+  const parts = [["proteinG", "macro_p"], ["fatG", "macro_f"], ["carbsG", "macro_c"], ["fiberG", "macro_fib"]]
+    .filter(([k]) => m[k] != null)
+    .map(([k, key]) => '<span class="mc" aria-label="' + esc(t(key + "_long", { n: m[k] })) + '"><b aria-hidden="true">' + esc(t(key)) + '</b><span aria-hidden="true">' + esc(t("macro_g", { n: m[k] })) + "</span></span>");
+  return '<div class="macros"><div class="kc"><b>' + esc(kcal) + "</b>" +
+    (exact ? '<span class="src">' + esc(t("macro_src_dietitian")) + "</span>" : "") + "</div>" +
+    (parts.length ? '<div class="mcs">' + parts.join("") + "</div>" : "") + "</div>";
 }
 
 registerView("recipe", {

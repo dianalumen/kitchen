@@ -15,7 +15,8 @@ import { onMultiPaste, previewBatch, batchToast } from "./paste.js";
 import { unitCodes } from "./pickers.js";
 import { initDrag } from "./drag.js";
 import {
-  MEALS, mealGlyph, ingredientsOf, stepsOf, saveRecipe, deleteRecipe, photoUrl, newPhotoPath, keepLocal, resizeImage, photoError
+  MEALS, mealGlyph, ingredientsOf, stepsOf, saveRecipe, deleteRecipe, photoUrl, newPhotoPath, keepLocal, resizeImage, photoError,
+  MACRO_KEYS
 } from "./recipes-data.js";
 
 let seq = 0;
@@ -76,8 +77,45 @@ function draftFrom(id) {
     oldImagePath: r ? r.imagePath || null : null,
     photo: null, // { path, blob, done } for a photo picked in this editor
     rows,
-    steps: r ? stepsOf(id).map((s) => ({ k: key(), id: s.id, text: s.text, timer: s.timerMinutes ? String(s.timerMinutes) : "" })) : []
+    steps: r ? stepsOf(id).map((s) => ({ k: key(), id: s.id, text: s.text, timer: s.timerMinutes ? String(s.timerMinutes) : "" })) : [],
+    macros: macroDraft(r)
   };
+}
+
+// ---------------------------------------------------------------------------
+// Macros section (M7.2): kcal, protein, fat, carbs and fiber per serving, typed by hand.
+// Unchanged numbers keep their source; changed or new ones are saved as "estimated" ("ok.").
+// ---------------------------------------------------------------------------
+const MACRO_MAX = { kcal: 10000, proteinG: 1000, fatG: 1000, carbsG: 1000, fiberG: 1000 };
+const MACRO_LBL = { kcal: "macro_kcal_lbl", proteinG: "macro_p_lbl", fatG: "macro_f_lbl", carbsG: "macro_c_lbl", fiberG: "macro_fib_lbl" };
+
+function macroDraft(r) {
+  const m = {};
+  for (const k of MACRO_KEYS) m[k] = r && r[k] != null ? fmtNum(r[k]).replace(/\s/g, "") : "";
+  return m;
+}
+
+function macrosHtml(d) {
+  const src = d.isNew ? null : (byId("recipes", d.id) || {}).macrosSource;
+  return '<section class="esec"><div class="sechead"><h2>' + esc(t("macro_title")) + "</h2></div>" +
+    '<p class="hint">' + esc(t(src === "dietitian" ? "macro_hint_diet" : "macro_hint_est")) + "</p>" +
+    '<div class="emacros" data-macros>' + MACRO_KEYS.map((k) =>
+      '<div><label class="lbl" for="e-m-' + k + '">' + esc(t(MACRO_LBL[k])) + "</label>" +
+      '<input class="fld" id="e-m-' + k + '" data-macro="' + k + '" inputmode="decimal" maxlength="7" autocomplete="off" value="' + esc(d.macros[k]) + '"></div>').join("") +
+    "</div></section>";
+}
+
+// Draft text → { kcal, proteinG, …, macrosSource } for saveRecipe.
+function macrosToSave(d) {
+  const r = d.isNew ? null : byId("recipes", d.id);
+  const out = {};
+  for (const k of MACRO_KEYS) {
+    const n = toNumber(d.macros[k]);
+    out[k] = n != null && n >= 0 && n < MACRO_MAX[k] ? Math.round(n * 10) / 10 : null;
+  }
+  const same = r && MACRO_KEYS.every((k) => (r[k] ?? null) === out[k]);
+  out.macrosSource = out.kcal == null ? null : same && r.macrosSource ? r.macrosSource : "estimated";
+  return out;
 }
 
 export function openEditor(id, restored = null) {
@@ -136,6 +174,7 @@ export function openEditor(id, restored = null) {
     '<section class="esec"><div class="sechead"><h2>' + esc(t("recipe_steps")) + '</h2><span data-step-n></span></div>' +
     '<div class="erows" data-steps></div>' +
     '<button type="button" class="btn" data-add-step>' + icon("plus") + esc(t("recipe_step_add")) + "</button></section>" +
+    macrosHtml(d) +
     '<div><label class="lbl" for="e-src">' + esc(t("recipe_source")) + '</label><input class="fld" id="e-src" data-src type="url" inputmode="url" maxlength="2000" autocapitalize="off" spellcheck="false" placeholder="https://" value="' + esc(d.sourceUrl) + '"></div>' +
     (d.isNew ? "" : '<button type="button" class="btn danger wide" data-delete>' + icon("trash") + esc(t("recipe_delete")) + "</button>") +
     "</div>";
@@ -395,6 +434,15 @@ export function openEditor(id, restored = null) {
         if (ta) ta.focus();
       });
 
+      // Macros: digits and one decimal comma only.
+      sheet.querySelector("[data-macros]").addEventListener("input", (e) => {
+        const k = e.target.dataset.macro;
+        if (!k) return;
+        const v = e.target.value.replace(/\./g, ",").replace(/[^\d,]/g, "").replace(/(,.*),/g, "$1");
+        if (v !== e.target.value) e.target.value = v;
+        d.macros[k] = v;
+      });
+
       // Save
       sheet.querySelector("[data-save]").addEventListener("click", () => {
         const title = d.title.replace(/\s+/g, " ").trim().slice(0, 120);
@@ -425,7 +473,8 @@ export function openEditor(id, restored = null) {
         saveRecipe({
           recipe: {
             id: d.id, title, mealType: d.mealType, servings: d.servings,
-            prepMinutes: d.prepMinutes, cookMinutes: d.cookMinutes, sourceUrl: src || null, imagePath: d.imagePath
+            prepMinutes: d.prepMinutes, cookMinutes: d.cookMinutes, sourceUrl: src || null, imagePath: d.imagePath,
+            ...macrosToSave(d)
           },
           ingredients, steps,
           photo: d.photo && d.photo.path === d.imagePath ? d.photo : null,

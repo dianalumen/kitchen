@@ -13,6 +13,7 @@
 --   * anon can read nothing and call nothing
 --   * a user without a household (D) gets BAD_CODE for a wrong invite code
 --   * static checks: RLS on every table, no anon privileges, realtime
+--   * the macros columns (M7.2): shared like every column, range checks hold
 --
 -- Nothing is kept. The tests run inside one PL/pgSQL block whose subtransaction
 -- is always rolled back at the end (a forced error, caught), so the fake users,
@@ -448,6 +449,41 @@ begin
     perform pg_temp.kt_as(u_c);
     s := pg_temp.kt_val(format('select public.add_recipe_to_list(%L, 2)::text', r_pancakes));
     log := log || pg_temp.kt_res(s like '%NOT_FOUND%', 'C cannot add A''s recipe to a list: NOT_FOUND', s);
+
+    -- -----------------------------------------------------------------------
+    step := '8b macros (M7.2)';
+    perform pg_temp.kt_as(u_a);
+    s := pg_temp.kt_exec(format($q$update public.recipes set kcal = 520.5, protein_g = 41, fat_g = 15.2, carbs_g = 50,
+                                   fiber_g = 9, macros_source = 'dietitian', tags = '{Dietetyk}' where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'A sets dietitian macros on B''s recipe', s);
+    s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set grams = 200 where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'A sets grams on an ingredient of B''s recipe', s);
+    perform pg_temp.kt_as(u_b);
+    s := pg_temp.kt_val(format($q$select kcal || ' ' || protein_g || ' ' || macros_source || ' ' || array_to_string(tags, ',')
+                                  from public.recipes where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = '520.5 41 dietitian Dietetyk', 'B reads the macros, source and tag', s);
+    s := pg_temp.kt_val(format($q$select grams from public.recipe_ingredients where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = '200', 'B reads the grams', s);
+    s := pg_temp.kt_exec(format($q$update public.recipes set kcal = -1 where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'negative kcal is rejected', s);
+    s := pg_temp.kt_exec(format($q$update public.recipes set fiber_g = 1000 where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'fiber 1000 g per serving is rejected', s);
+    s := pg_temp.kt_exec(format($q$update public.recipes set macros_source = 'guess' where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'unknown macros_source is rejected', s);
+    s := pg_temp.kt_exec(format($q$update public.recipes set kcal = null where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'a macros_source without kcal is rejected', s);
+    s := pg_temp.kt_exec(format($q$update public.recipes set kcal = null, protein_g = null, fat_g = null, carbs_g = null,
+                                   fiber_g = null, macros_source = null where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'B clears all macros', s);
+    s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set grams = 0 where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'grams 0 is rejected', s);
+    s := pg_temp.kt_exec(format($q$insert into public.recipes (title, kcal, macros_source) values ('KT estimated', 480, 'estimated')$q$));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'B adds a recipe with estimated macros', s);
+    perform pg_temp.kt_as(u_c);
+    s := pg_temp.kt_exec(format($q$update public.recipes set kcal = 1 where id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 0', 'C cannot change the macros of A''s recipe', s);
+    s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set grams = 1 where recipe_id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 0', 'C cannot change the grams of A''s ingredients', s);
 
     -- -----------------------------------------------------------------------
     step := '9 storage';

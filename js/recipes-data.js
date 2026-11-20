@@ -35,6 +35,37 @@ export function recipeStats(r) {
 
 export const totalMinutes = (r) => (r.prepMinutes || 0) + (r.cookMinutes || 0);
 
+// ---------------------------------------------------------------------------
+// Macros (M7.2). Stored per serving on the recipe; macrosSource is "dietitian" (exact, from the
+// dietitian's plan) or "estimated" (typed in by hand, shown with "ok."). Recipes imported from the
+// plan carry the Dietetyk tag, which the R1 chip filters on.
+// ---------------------------------------------------------------------------
+export const DIET_TAG = "Dietetyk";
+export const MACRO_KEYS = ["kcal", "proteinG", "fatG", "carbsG", "fiberG"];
+export const isDietitian = (r) => Array.isArray(r.tags) && r.tags.includes(DIET_TAG);
+export const hasMacros = (r) => r.kcal != null;
+
+// Macros for `servings` portions: { kcal, proteinG, … } rounded to whole numbers, or null.
+export function macrosFor(r, servings) {
+  if (!hasMacros(r)) return null;
+  const k = servings || r.servings || 1;
+  const out = {};
+  for (const key of MACRO_KEYS) out[key] = r[key] == null ? null : Math.round(r[key] * k);
+  return out;
+}
+
+// Grams of an ingredient after its amount or unit changed in the editor. Weights convert
+// directly; the same household unit scales the old grams ("2 szt" 112 g → "3 szt" 168 g);
+// anything else is unknown.
+const TO_GRAMS = { g: 1, dag: 10, kg: 1000 };
+export function gramsFor(old, amount, unit) {
+  if (old && old.grams != null && (old.amount ?? null) === (amount ?? null) && (old.unit || null) === (unit || null)) return old.grams;
+  if (amount == null) return null;
+  if (TO_GRAMS[unit]) return Math.round(amount * TO_GRAMS[unit] * 100) / 100;
+  if (old && old.grams != null && old.amount > 0 && (old.unit || null) === (unit || null)) return Math.round(old.grams * amount / old.amount * 100) / 100;
+  return null;
+}
+
 // "Obiad, 30 min, 3/6" (the count only where asked).
 export function metaLine(r, withCount) {
   const parts = [];
@@ -84,8 +115,9 @@ export function addMissingToList(r, servings) {
 // are sent; removed rows are deleted. A new photo is uploaded first (inside the same write, so an
 // offline save retries the upload too); the replaced photo is removed once the save is through.
 // ---------------------------------------------------------------------------
-const RECIPE_FIELDS = ["title", "mealType", "servings", "prepMinutes", "cookMinutes", "imagePath", "sourceUrl", "description", "notes"];
-const ING_FIELDS = ["position", "name", "amount", "unit", "note", "section"];
+const RECIPE_FIELDS = ["title", "mealType", "servings", "prepMinutes", "cookMinutes", "imagePath", "sourceUrl", "description", "notes",
+  ...MACRO_KEYS, "macrosSource"];
+const ING_FIELDS = ["position", "name", "amount", "unit", "note", "section", "grams"];
 const STEP_FIELDS = ["position", "text", "timerMinutes"];
 const same = (a, b, fields) => fields.every((f) => (a[f] ?? null) === (b[f] ?? null));
 
@@ -99,7 +131,8 @@ export function saveRecipe({ recipe, ingredients, steps, photo = null, oldImageP
   const ings = ingredients.map((x, i) => {
     const old = x.id ? beforeI.find((b) => b.id === x.id) : null;
     return { ...(old || { id: newId(), createdAt: now }), recipeId: recipe.id, position: i + 1, name: x.name, nameKey: nameKey(x.name),
-      amount: x.amount ?? null, unit: x.unit || null, note: x.note || null, section: x.section || null };
+      amount: x.amount ?? null, unit: x.unit || null, note: x.note || null, section: x.section || null,
+      grams: gramsFor(old, x.amount ?? null, x.unit || null) };
   });
   const sts = steps.map((x, i) => {
     const old = x.id ? beforeS.find((b) => b.id === x.id) : null;
