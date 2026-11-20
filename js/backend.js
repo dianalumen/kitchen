@@ -3,7 +3,8 @@
 //
 // Backend API (both):
 //   load(user)                     → { noHousehold: true } | { household, members, settings, categories,
-//                                     categoryRules, units, shopping, pantry, recipes, ingredients, steps }
+//                                     categoryRules, units, shopping, pantry, recipes, ingredients, steps,
+//                                     foods } (foods: the global reference table for macro estimates)
 //   insert(coll, row) / update(coll, id, patch) / remove(coll, id)   → saved row (camelCase)
 //   insertMany(coll, rows) / updateMany(coll, ids, patch) → saved rows; removeMany(coll, ids)
 //   saveSettings(patch)            → saved settings row
@@ -38,6 +39,17 @@ const camel = (k) => k.replace(/_([a-z])/g, (m, c) => c.toUpperCase());
 const snake = (k) => k.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
 // Postgres numeric comes back as a string; these become JS numbers.
 const NUMERIC = new Set(["amount", "grams", "kcal", "protein_g", "fat_g", "carbs_g", "fiber_g"]);
+// Foods (M7.3) are the same for everyone and change only when supabase/foods.sql is run again, so
+// they are read once per session. A database without the table yet (schema not updated) or any
+// other error just means no estimates: the rest of the app loads as usual.
+let foodsCache = null;
+async function loadFoods(sb) {
+  if (foodsCache) return foodsCache;
+  const { data, error } = await sb.from("foods").select("id, name, aliases, kcal, protein_g, fat_g, carbs_g, fiber_g, units, trace, source, source_id").order("name");
+  if (error) { console.warn("Foods not loaded", error); return []; }
+  foodsCache = data.map(fromRow);
+  return foodsCache;
+}
 export const IMAGE_BUCKET = "recipe-images";
 // Never written by the client: generated columns, defaults and trigger-maintained columns.
 const READ_ONLY = new Set(["nameKey", "keywordKey", "householdId", "updatedAt", "checkedAt"]);
@@ -86,7 +98,7 @@ export function sbBackend(sb) {
     // query simply comes back empty.
     async load(user) {
       const all = (table, order = "position") => must(sb.from(table).select("*").order(order));
-      const [me, household, members, settings, categories, categoryRules, units, shopping, pantry, recipes, ingredients, steps] =
+      const [me, household, members, settings, categories, categoryRules, units, shopping, pantry, recipes, ingredients, steps, foods] =
         await Promise.all([
           must(sb.from("household_members").select("household_id").eq("user_id", user.id).maybeSingle()),
           must(sb.from("households").select("*").maybeSingle()),
@@ -99,7 +111,8 @@ export function sbBackend(sb) {
           all("pantry_items", "name"),
           all("recipes", "title"),
           all("recipe_ingredients"),
-          all("recipe_steps")
+          all("recipe_steps"),
+          loadFoods(sb).catch(() => [])
         ]);
       if (!me || !household) return { noHousehold: true };
       householdId = me.household_id;
@@ -114,7 +127,8 @@ export function sbBackend(sb) {
         pantry: pantry.map(fromRow),
         recipes: recipes.map(fromRow),
         ingredients: ingredients.map(fromRow),
-        steps: steps.map(fromRow)
+        steps: steps.map(fromRow),
+        foods
       };
     },
 

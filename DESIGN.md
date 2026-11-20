@@ -190,3 +190,9 @@ No board exists for these; they follow the A components.
 - **Macros in R2** sit between the title and the servings row: kcal at 22 px with a small soft *Dietetyk* pill, then four soft tiles (B, T, W, Bł) with the letter muted and the grams in ink. Screen readers hear the full words ("Białko 39 g"). The numbers are for the servings in the stepper, rounded to whole numbers.
 - **"ok." marks estimated macros**, including dietitian numbers changed by hand in the editor; the *Dietetyk* pill shows only for unchanged dietitian numbers.
 - **Uwagi** (the recipe's notes, e.g. the dietitian's tips) show as a soft block after the steps; the editor does not edit them yet.
+
+### Deliberate differences in the build (M7.3, macro estimates)
+No board exists for these either; they reuse the M7.2 macros block and the A list components.
+- **Estimates look like typed-in macros:** "ok. 480 kcal" and the same four tiles. Under them, "2 składniki bez danych" is a muted underlined text button that opens the editor at *Produkty*; when nothing can be computed (no amounts at all), only that line shows.
+- **Produkty in R3** sits inside *Makro na porcję*, not on each ingredient row, so the rows stay as they are. The head shows matched/total ("6/7"), the hint gives the live estimate per serving. Rows without data come first in a soft group (name, "Bez danych" or the food with "bez ilości", and *Wybierz* or *Zmień*); matched rows fold under "6 dopasowanych".
+- **Food picker** is a stacked tall sheet over the editor: the ingredient's name, a search field, then a radio list (*Dopasuj po nazwie* first, then every food with "143 kcal w 100 g").

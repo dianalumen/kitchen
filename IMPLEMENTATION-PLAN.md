@@ -19,6 +19,7 @@ How we get from the docs to an app we use every day. **What** we build is in [PR
 | v1.1: M7.1–M7.3 | planned 2026-11-19: multi-line paste, dietitian recipes with macros, macro estimates for other recipes |
 | M7.1 Multi-line paste | ✅ merged 2026-11-20; [D] phone test pending |
 | M7.2 Dietitian recipes | ✅ merged 2026-11-20; schema columns applied in Supabase 2026-11-20; [D] run the generated import once and check the 28 recipes |
+| M7.3 Macro estimates | built on branch `claude/m7-3-macros-211e8c` (2026-11-20): 185 foods from USDA and CIQUAL, 26/28 dietitian meals within 10%; [D] run the schema change and `foods.sql` in the SQL Editor |
 | M8–M9 (v2) | pending, after v1.1 |
 
 ### How milestones run

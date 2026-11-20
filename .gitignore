@@ -4,3 +4,5 @@ config.js
 supabase/seed/*
 !supabase/seed/README.md
 .DS_Store
+# Downloaded source files for tools/build_foods.py (public data, re-downloaded on demand).
+tools/.cache/

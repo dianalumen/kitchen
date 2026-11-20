@@ -14,6 +14,9 @@
 --   * a user without a household (D) gets BAD_CODE for a wrong invite code
 --   * static checks: RLS on every table, no anon privileges, realtime
 --   * the macros columns (M7.2): shared like every column, range checks hold
+--   * foods (M7.3): every signed-in user reads them, nobody writes them from
+--     the client, anon reads nothing; an ingredient's picked food is shared
+--     like every column and cleared when the food is removed
 --
 -- Nothing is kept. The tests run inside one PL/pgSQL block whose subtransaction
 -- is always rolled back at the end (a forced error, caught), so the fake users,
@@ -484,6 +487,53 @@ begin
     log := log || pg_temp.kt_res(s = 'ok 0', 'C cannot change the macros of A''s recipe', s);
     s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set grams = 1 where recipe_id = %L$q$, r_pancakes));
     log := log || pg_temp.kt_res(s = 'ok 0', 'C cannot change the grams of A''s ingredients', s);
+
+    -- -----------------------------------------------------------------------
+    step := '8c foods (M7.3)';
+    perform pg_temp.kt_admin();
+    insert into public.foods (id, name, aliases, kcal, protein_g, fat_g, carbs_g, fiber_g, units, source, source_id, source_name)
+    values ('kt-flour', 'KT mąka', '{kt mąka pszenna}', 364, 10.33, 0.98, 73.61, 2.7, '{"szklanka": 125}', 'usda-sr', '0', 'KT test food')
+    on conflict (id) do nothing;
+    s := pg_temp.kt_exec($q$insert into public.foods (id, name, kcal, protein_g, fat_g, carbs_g, source, source_id, source_name)
+                            values ('kt-bad', 'KT', -1, 0, 0, 0, 'usda-sr', '0', 'KT')$q$);
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'foods: negative kcal is rejected', s);
+    s := pg_temp.kt_exec($q$insert into public.foods (id, name, kcal, protein_g, fat_g, carbs_g, source, source_id, source_name)
+                            values ('KT Bad', 'KT', 1, 0, 0, 0, 'usda-sr', '0', 'KT')$q$);
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'foods: an id that is not a slug is rejected', s);
+    s := pg_temp.kt_exec($q$insert into public.foods (id, name, kcal, protein_g, fat_g, carbs_g, source, source_id, source_name)
+                            values ('kt-bad', 'KT', 1, 0, 0, 0, 'guess', '0', 'KT')$q$);
+    log := log || pg_temp.kt_res(s like 'error 23514%', 'foods: an unknown source is rejected', s);
+
+    perform pg_temp.kt_as(null, 'anon');
+    s := pg_temp.kt_val('select count(*) from public.foods');
+    log := log || pg_temp.kt_res(s like 'error 42501%', 'anon cannot read foods', s);
+    perform pg_temp.kt_as(u_a);
+    s := pg_temp.kt_val($q$select name || ' ' || kcal || ' ' || (units->>'szklanka') from public.foods where id = 'kt-flour'$q$);
+    log := log || pg_temp.kt_res(s = 'KT mąka 364 125', 'A reads a food', s);
+    s := pg_temp.kt_exec($q$insert into public.foods (id, name, kcal, protein_g, fat_g, carbs_g, source, source_id, source_name)
+                            values ('kt-mine', 'KT', 1, 0, 0, 0, 'usda-sr', '0', 'KT')$q$);
+    log := log || pg_temp.kt_res(s like 'error 42501%', 'A cannot add a food', s);
+    s := pg_temp.kt_exec($q$update public.foods set kcal = 1 where id = 'kt-flour'$q$);
+    log := log || pg_temp.kt_res(s like 'error 42501%', 'A cannot change a food', s);
+    s := pg_temp.kt_exec($q$delete from public.foods where id = 'kt-flour'$q$);
+    log := log || pg_temp.kt_res(s like 'error 42501%', 'A cannot delete a food', s);
+    s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set food_id = 'kt-flour' where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 1', 'A picks a food for an ingredient of B''s recipe', s);
+    s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set food_id = 'kt-nope' where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s like 'error 23503%', 'a food that does not exist is rejected', s);
+    perform pg_temp.kt_as(u_c);
+    s := pg_temp.kt_val($q$select count(*) from public.foods where id = 'kt-flour'$q$);
+    log := log || pg_temp.kt_res(s = '1', 'C (another household) reads the same foods', s);
+    s := pg_temp.kt_exec(format($q$update public.recipe_ingredients set food_id = null where recipe_id = %L$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'ok 0', 'C cannot change the food of A''s ingredients', s);
+    perform pg_temp.kt_as(u_b);
+    s := pg_temp.kt_val(format($q$select food_id from public.recipe_ingredients where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'kt-flour', 'B reads the picked food', s);
+    perform pg_temp.kt_admin();
+    delete from public.foods where id = 'kt-flour';
+    perform pg_temp.kt_as(u_b);
+    s := pg_temp.kt_val(format($q$select coalesce(food_id, 'cleared') from public.recipe_ingredients where recipe_id = %L and name_key = 'mąka'$q$, r_pancakes));
+    log := log || pg_temp.kt_res(s = 'cleared', 'a removed food clears the pick, the ingredient stays', s);
 
     -- -----------------------------------------------------------------------
     step := '9 storage';

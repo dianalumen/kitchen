@@ -267,6 +267,39 @@ alter table public.recipes add constraint recipes_macros_source_kcal_check
 alter table public.recipe_ingredients
   add column if not exists grams numeric check (grams > 0 and grams < 100000);
 
+-- Foods (v1.1, M7.3): nutrition reference data for macro estimates, per 100 g.
+-- Global, not per household: every signed-in user reads it, nobody writes it
+-- from the client (no household_id, so the household rules of TECH-GUIDELINES
+-- §5.2 do not apply). The rows come from open data (USDA FoodData Central,
+-- ANSES-CIQUAL) via tools/build_foods.py, which writes supabase/foods.sql.
+-- carbs_g is available carbohydrate (fibre not included). units holds grams per
+-- household unit ({"szt": 50, "łyżka": 13.5, "ml": 0.91}); trace marks salt,
+-- spices, herbs and water, whose unknown amount counts as nothing.
+create table if not exists public.foods (
+  id          text primary key check (id ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and char_length(id) <= 40),
+  name        text not null check (char_length(trim(name)) between 1 and 80),
+  aliases     text[] not null default '{}',
+  kcal        numeric not null check (kcal >= 0 and kcal <= 900),
+  protein_g   numeric not null check (protein_g >= 0 and protein_g <= 100),
+  fat_g       numeric not null check (fat_g >= 0 and fat_g <= 100),
+  carbs_g     numeric not null check (carbs_g >= 0 and carbs_g <= 100),
+  fiber_g     numeric check (fiber_g >= 0 and fiber_g <= 100),
+  units       jsonb not null default '{}'::jsonb check (jsonb_typeof(units) = 'object'),
+  trace       boolean not null default false,
+  source      text not null check (source in ('usda-sr', 'usda-ff', 'ciqual')),
+  source_id   text not null check (char_length(source_id) between 1 and 20),
+  source_name text not null check (char_length(source_name) between 1 and 300),
+  updated_at  timestamptz not null default now()
+);
+
+-- The food picked by hand in the recipe editor (R3) when the match by name is
+-- wrong or missing; null means "match by name". A food that leaves the table
+-- clears the pick.
+alter table public.recipe_ingredients
+  add column if not exists food_id text references public.foods (id) on delete set null;
+create index if not exists recipe_ingredients_food_idx
+  on public.recipe_ingredients (food_id) where food_id is not null;
+
 
 -- ---------------------------------------------------------------------------
 -- 3. Triggers
@@ -330,6 +363,19 @@ create policy "members read their household" on public.household_members
 
 revoke all on public.households, public.household_members from public, anon, authenticated;
 grant select on public.households, public.household_members to authenticated;
+
+-- foods: shared reference data, read-only for every signed-in user; only the
+-- SQL Editor (supabase/foods.sql) writes it. Not in realtime: it changes only
+-- when the seed is run again.
+alter table public.foods enable row level security;
+
+drop policy if exists "signed-in users read foods" on public.foods;
+create policy "signed-in users read foods" on public.foods
+  for select to authenticated
+  using (true);
+
+revoke all on public.foods from public, anon, authenticated;
+grant select on public.foods to authenticated;
 
 -- Data tables: the same four things for each one. revoke-then-grant keeps the
 -- privileges exact on every run (no TRUNCATE, which would bypass RLS).

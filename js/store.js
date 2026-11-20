@@ -21,6 +21,7 @@ export const state = {
   recipes: [],
   ingredients: [],
   steps: [],
+  foods: [],           // reference data for macro estimates (M7.3), read-only, not realtime
   online: navigator.onLine, // browser network state
   queued: 0,                // writes waiting for the network
   live: false,              // realtime channel subscribed

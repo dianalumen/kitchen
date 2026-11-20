@@ -213,6 +213,9 @@ function sampleData() {
     "Wlej mleko kokosowe i zmiksuj na gładki krem.",
     "Podawaj z pestkami dyni."
   ]);
+  // Estimates (M7.3): these recipes have no macros of their own, so R2 estimates them from the
+  // foods table. "Bulion warzywny" and "Twaróg" have no food, so they show as "bez danych" and R3
+  // offers the food picker for them.
   recipe("Hummus", "snack", 4, 10, 0, [
     ["Ciecierzyca", 1, "szt", "w puszce"], ["Tahini", 2, "łyżka"], ["Cytryny", 1, "szt", "sok"], ["Czosnek", 1, "ząbek"],
     ["Oliwa z oliwek", 3, "łyżka"], ["Kmin rzymski", 0.5, "łyżeczka"]
@@ -321,7 +324,12 @@ export function demoBackend() {
 
   return {
     kind: "demo",
-    async load() { await wait(); return clone(data); },
+    // Foods (M7.3): the generated copy of supabase/foods.sql, loaded only in ?demo.
+    async load() {
+      await wait();
+      if (!data.foods) data.foods = (await import("./foods-data.js")).FOODS;
+      return clone(data);
+    },
     async insert(coll, row) { await wait(80); net(); return clone(insertOne(coll, row)); },
     async update(coll, id, patch) { await wait(80); net(); return clone(updateOne(coll, id, patch)); },
     async remove(coll, id) { await wait(80); net(); removeOne(coll, id); return true; },

@@ -14,7 +14,7 @@ import { header, setEyebrow, settingsButton, registerView, go, on } from "../she
 import { nameKey } from "../parse.js";
 import {
   MEALS, mealGlyph, haveIt, onList, stepsOf, recipeStats, metaLine, scaled, missingToAdd, addMissingToList, photoUrl,
-  DIET_TAG, isDietitian, macrosFor
+  DIET_TAG, isDietitian, recipeMacros, scaleMacros
 } from "../recipes-data.js";
 import { openEditor } from "../recipe-editor.js";
 
@@ -201,18 +201,26 @@ function paintRecipe(root) {
 }
 
 // Macros for the chosen servings: "520 kcal" (or "ok. 480 kcal" when estimated), then B, T, W and
-// Bł in grams, and a small Dietetyk label when the numbers are the dietitian's.
+// Bł in grams, and a small Dietetyk label when the numbers are the dietitian's. A recipe without
+// stored macros gets an estimate from the foods table (M7.3) plus "2 składniki bez danych" for
+// ingredients with no food or no weight; that line opens the editor, where they can be fixed.
 function macrosHtml(r, servings) {
-  const m = macrosFor(r, servings);
-  if (!m) return "";
-  const exact = r.macrosSource === "dietitian";
-  const kcal = t(exact || !r.macrosSource ? "macro_kcal" : "macro_kcal_est", { n: m.kcal });
+  const base = recipeMacros(r);
+  if (!base) return "";
+  const computed = base.source === "computed";
+  if (computed && !state.foods.length) return ""; // foods not loaded: nothing to say
+  const missing = computed && base.missing.length
+    ? '<button type="button" class="mmiss" data-act="edit-recipe" data-focus="foods" data-id="' + esc(r.id) + '">' + esc(t("macro_missing", { n: base.missing.length })) + "</button>" : "";
+  if (computed && !base.counted) return '<div class="macros">' + missing + "</div>";
+  const m = scaleMacros(base, servings);
+  const exact = base.source === "dietitian";
+  const kcal = t(exact || (!computed && !r.macrosSource) ? "macro_kcal" : "macro_kcal_est", { n: m.kcal });
   const parts = [["proteinG", "macro_p"], ["fatG", "macro_f"], ["carbsG", "macro_c"], ["fiberG", "macro_fib"]]
     .filter(([k]) => m[k] != null)
     .map(([k, key]) => '<span class="mc" aria-label="' + esc(t(key + "_long", { n: m[k] })) + '"><b aria-hidden="true">' + esc(t(key)) + '</b><span aria-hidden="true">' + esc(t("macro_g", { n: m[k] })) + "</span></span>");
   return '<div class="macros"><div class="kc"><b>' + esc(kcal) + "</b>" +
     (exact ? '<span class="src">' + esc(t("macro_src_dietitian")) + "</span>" : "") + "</div>" +
-    (parts.length ? '<div class="mcs">' + parts.join("") + "</div>" : "") + "</div>";
+    (parts.length ? '<div class="mcs">' + parts.join("") + "</div>" : "") + missing + "</div>";
 }
 
 registerView("recipe", {
@@ -225,7 +233,7 @@ on({
   "open-recipe": (el) => go("recipe", el.dataset.id),
   "back-recipes": () => (history.length > 1 ? history.back() : go("recipes")),
   "recipe-new": () => openEditor(null),
-  "edit-recipe": (el) => openEditor(el.dataset.id),
+  "edit-recipe": (el) => openEditor(el.dataset.id, null, el.dataset.focus || null),
   "recipe-add-missing": () => { const r = byId("recipes", cur.id); if (r) addMissingToList(r, cur.servings); },
   "recipe-cook": () => go("cook", cur.id, cur.servings)
 });

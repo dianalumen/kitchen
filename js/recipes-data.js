@@ -5,6 +5,7 @@ import { t } from "./i18n.js";
 import { toast, undoToast } from "./ui.js";
 import { state, byId, putLocal, dropLocal, optimistic, getBackend, newId, deleteRows, updateRows } from "./store.js";
 import { nameKey } from "./parse.js";
+import { estimateRecipe, NUTRIENTS } from "./macros.js";
 import { addToList, guessCategory } from "./views/list.js";
 
 export const MEALS = ["breakfast", "lunch", "dinner", "snack"];
@@ -45,12 +46,27 @@ export const MACRO_KEYS = ["kcal", "proteinG", "fatG", "carbsG", "fiberG"];
 export const isDietitian = (r) => Array.isArray(r.tags) && r.tags.includes(DIET_TAG);
 export const hasMacros = (r) => r.kcal != null;
 
-// Macros for `servings` portions: { kcal, proteinG, … } rounded to whole numbers, or null.
-export function macrosFor(r, servings) {
-  if (!hasMacros(r)) return null;
-  const k = servings || r.servings || 1;
-  const out = {};
-  for (const key of MACRO_KEYS) out[key] = r[key] == null ? null : Math.round(r[key] * k);
+// Macros to show for a recipe (M7.3): the stored ones when there are any (dietitian, or typed in
+// R3), otherwise an estimate from the foods table, computed here and never saved. Per serving:
+// { kcal, proteinG, …, source: "dietitian" | "estimated" | "computed", missing, counted } or null.
+// An estimate needs at least one ingredient with a food and a weight.
+export function recipeMacros(r) {
+  if (hasMacros(r)) {
+    const out = { source: r.macrosSource || "estimated", missing: [], counted: 0 };
+    for (const k of MACRO_KEYS) out[k] = r[k] ?? null;
+    return out;
+  }
+  const ings = ingredientsOf(r.id);
+  if (!ings.length) return null;
+  const e = estimateRecipe(r, ings, state.foods);
+  return { ...e, source: "computed" };
+}
+
+// Per serving → for `servings` portions, rounded to whole numbers (null stays null).
+export function scaleMacros(m, servings) {
+  if (!m) return null;
+  const out = { ...m };
+  for (const k of NUTRIENTS) out[k] = m[k] == null ? null : Math.round(m[k] * (servings || 1));
   return out;
 }
 
@@ -117,7 +133,7 @@ export function addMissingToList(r, servings) {
 // ---------------------------------------------------------------------------
 const RECIPE_FIELDS = ["title", "mealType", "servings", "prepMinutes", "cookMinutes", "imagePath", "sourceUrl", "description", "notes",
   ...MACRO_KEYS, "macrosSource"];
-const ING_FIELDS = ["position", "name", "amount", "unit", "note", "section", "grams"];
+const ING_FIELDS = ["position", "name", "amount", "unit", "note", "section", "grams", "foodId"];
 const STEP_FIELDS = ["position", "text", "timerMinutes"];
 const same = (a, b, fields) => fields.every((f) => (a[f] ?? null) === (b[f] ?? null));
 
@@ -132,7 +148,10 @@ export function saveRecipe({ recipe, ingredients, steps, photo = null, oldImageP
     const old = x.id ? beforeI.find((b) => b.id === x.id) : null;
     return { ...(old || { id: newId(), createdAt: now }), recipeId: recipe.id, position: i + 1, name: x.name, nameKey: nameKey(x.name),
       amount: x.amount ?? null, unit: x.unit || null, note: x.note || null, section: x.section || null,
-      grams: gramsFor(old, x.amount ?? null, x.unit || null) };
+      grams: gramsFor(old, x.amount ?? null, x.unit || null),
+      // The food picked in R3 (M7.3). Left out when never set, so a database without the
+      // food_id column (schema not updated yet) still accepts the save.
+      ...(x.foodId !== undefined ? { foodId: x.foodId || null } : {}) };
   });
   const sts = steps.map((x, i) => {
     const old = x.id ? beforeS.find((b) => b.id === x.id) : null;
