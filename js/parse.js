@@ -136,3 +136,36 @@ export function suggest(query, sources, limit = 4) {
   out.sort((a, b) => b.score - a.score || a.si - b.si || nameKey(a.name).length - nameKey(b.name).length);
   return out.slice(0, limit);
 }
+
+// ---------------------------------------------------------------------------
+// Pasted text: one entry per line, or per sentence
+// ---------------------------------------------------------------------------
+
+// A list marker at the start of a line: "-", "–", "•", "*", "1.", "1)", "[ ]", "[x]", "☐".
+// Dash and star need a space after them ("-5" stays), a dot bullet or checkbox does not.
+const MARKER = /^(?:[-–—*](?:\s+|$)|[•·▪●◦■□☐☑✓✔]\s*|\[[ xX✓]?\]\s*|\(?\d{1,3}[.)](?:\s+|$))/;
+
+// "- [ ] mleko 2 l" → "mleko 2 l". Markers can stack ("- 1. jajka"), so strip until none is left.
+export function stripMarker(line) {
+  let s = String(line ?? "").replace(/\s+/g, " ").trim();
+  for (let i = 0; i < 4; i++) {
+    const next = s.replace(MARKER, "").trim();
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+}
+
+// Lines of a pasted text, markers stripped, empty lines dropped. Handles \n, \r\n and \r.
+// A single line comes back as one entry, so callers can tell "plain paste" from "batch" by length.
+export function splitLines(text) {
+  return String(text ?? "").split(/\r\n|[\n\r\u2028\u2029\u0085]/).map(stripMarker).filter(Boolean);
+}
+
+// One paragraph → sentences. A sentence ends at . ! ? … followed by a space and a capital letter or
+// a quote, so "ok. 5 min" and "np. mąka" stay whole. Text with no such break is one entry.
+export function splitSentences(text) {
+  const s = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return [];
+  return s.split(/(?<=[.!?…])\s+(?=[\p{Lu}"„(])/u).map((x) => x.trim()).filter(Boolean);
+}

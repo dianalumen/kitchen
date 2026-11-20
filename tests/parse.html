@@ -16,7 +16,7 @@
 <h1 id="sum">Running…</h1>
 <ul id="out"></ul>
 <script type="module">
-import { parseItem, matchRule, matchScore, suggest, toNumber } from "../js/parse.js";
+import { parseItem, matchRule, matchScore, suggest, toNumber, splitLines, splitSentences, stripMarker } from "../js/parse.js";
 
 const UNITS = ["szt", "g", "dag", "kg", "ml", "l", "opak", "łyżka", "łyżeczka", "szklanka", "pęczek", "plaster"];
 const results = [];
@@ -76,6 +76,36 @@ const s = suggest("mle", [
 check("suggest dedupes by name, keeps first source", s.map((x) => x.src), ["list", "pantry", "recent"]);
 check("suggest limit", suggest("m", [[{ name: "m1" }, { name: "m2" }, { name: "m3" }, { name: "m4" }, { name: "m5" }]]).length, 4);
 check("suggest empty query", suggest(" ", [[{ name: "x" }]]), []);
+
+// splitLines: pasted multi-line text
+check("lines: plain", splitLines("mleko\nchleb\njajka"), ["mleko", "chleb", "jajka"]);
+check("lines: dash bullets", splitLines("- mleko\n- chleb"), ["mleko", "chleb"]);
+check("lines: dot, star and en dash bullets", splitLines("• mleko\n* chleb\n– masło\n— ser"), ["mleko", "chleb", "masło", "ser"]);
+check("lines: bullet without space after a dot", splitLines("•mleko\n•chleb"), ["mleko", "chleb"]);
+check("lines: numbering 1. and 1)", splitLines("1. mleko\n2) chleb\n(3) jajka"), ["mleko", "chleb", "jajka"]);
+check("lines: checkboxes", splitLines("[ ] mleko\n[x] chleb\n[] masło\n☐ ser"), ["mleko", "chleb", "masło", "ser"]);
+check("lines: stacked markers", splitLines("- [ ] mleko 2 l"), ["mleko 2 l"]);
+check("lines: Windows breaks", splitLines("mleko\r\nchleb\r\n"), ["mleko", "chleb"]);
+check("lines: old Mac breaks", splitLines("mleko\rchleb"), ["mleko", "chleb"]);
+check("lines: empty lines and spaces dropped", splitLines("\n\n  mleko  \n \n\t\nchleb\n\n"), ["mleko", "chleb"]);
+check("lines: marker-only line dropped", splitLines("-\n- \nmleko\n•"), ["mleko"]);
+check("lines: single line", splitLines("mleko 2 l"), ["mleko 2 l"]);
+check("lines: single line with trailing break", splitLines("mleko 2 l\n"), ["mleko 2 l"]);
+check("lines: amount is not a marker", splitLines("2 jajka\n500 g mąki\n1,5 l mleka\n1.5 kg ziemniaków"), ["2 jajka", "500 g mąki", "1,5 l mleka", "1.5 kg ziemniaków"]);
+check("lines: dash without space stays", splitLines("-5 stopni\n-mleko"), ["-5 stopni", "-mleko"]);
+check("lines: empty", splitLines(""), []);
+check("lines: each goes through parseItem", splitLines("- mąka 0,5 kg\n2. mleko 2 l\njajka 10").map((l) => P(l)),
+  [R("mąka", 0.5, "kg"), R("mleko", 2, "l"), R("jajka", 10)]);
+check("stripMarker keeps a plain line", stripMarker("  chleb   razowy "), "chleb razowy");
+
+// splitSentences: one pasted paragraph → steps
+check("sentences: basic", splitSentences("Pokrój cebulę. Podsmaż na oleju. Dodaj pomidory."), ["Pokrój cebulę.", "Podsmaż na oleju.", "Dodaj pomidory."]);
+check("sentences: ! and ?", splitSentences("Uwaga, gorące! Czy gotowe? Tak."), ["Uwaga, gorące!", "Czy gotowe?", "Tak."]);
+check("sentences: abbreviation before a number or lowercase", splitSentences("Piecz ok. 20 min. Potem wyjmij i ostudź, np. na kratce."), ["Piecz ok. 20 min.", "Potem wyjmij i ostudź, np. na kratce."]);
+check("sentences: decimals stay", splitSentences("Dodaj 0.5 l wody. Gotuj."), ["Dodaj 0.5 l wody.", "Gotuj."]);
+check("sentences: no break is one step", splitSentences("Wymieszaj wszystko"), ["Wymieszaj wszystko"]);
+check("sentences: spaces and line breaks collapse", splitSentences("  Jeden.\n  Dwa. "), ["Jeden.", "Dwa."]);
+check("sentences: empty", splitSentences(" "), []);
 
 const bad = results.filter((r) => !r.ok);
 document.getElementById("sum").textContent = (results.length - bad.length) + "/" + results.length + " pass";

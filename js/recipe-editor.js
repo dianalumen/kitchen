@@ -10,7 +10,8 @@ import { t, fmtNum } from "./i18n.js";
 import { esc, icon, openSheet, toast } from "./ui.js";
 import { state, byId, newId } from "./store.js";
 import { go } from "./shell.js";
-import { parseItem, toNumber, unitFor } from "./parse.js";
+import { parseItem, toNumber, unitFor, splitSentences } from "./parse.js";
+import { onMultiPaste, previewBatch, batchToast } from "./paste.js";
 import { unitCodes } from "./pickers.js";
 import { initDrag } from "./drag.js";
 import {
@@ -114,7 +115,8 @@ export function openEditor(id, restored = null) {
     '<b class="n">' + esc(t("cook_step", { n: n + 1, total: d.steps.length })) + "</b>" +
     '<label class="etimer">' + icon("timer") + '<input data-f="timer" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="–" aria-label="' + esc(t("recipe_timer")) + '" value="' + esc(s.timer) + '"><span>min</span></label>' +
     '<button type="button" class="round" data-del aria-label="' + esc(t("list_delete")) + '">' + icon("trash") + "</button></div>" +
-    '<textarea class="fld area" data-f="text" rows="2" maxlength="4000" autocapitalize="sentences" placeholder="' + esc(t("recipe_step_ph")) + '" aria-label="' + esc(t("recipe_step_ph")) + '">' + esc(s.text) + "</textarea></div>";
+    '<textarea class="fld area" data-f="text" rows="2" maxlength="4000" autocapitalize="sentences" placeholder="' + esc(t("recipe_step_ph")) + '" aria-label="' + esc(t("recipe_step_ph")) + '">' + esc(s.text) + "</textarea>" +
+    '<button type="button" class="btn mini outline split" data-split hidden>' + esc(t("paste_split")) + "</button></div>";
 
   const num = (v) => (v == null ? "" : String(v));
   const body =
@@ -287,6 +289,21 @@ export function openEditor(id, restored = null) {
         addForm.ing.focus({ preventScroll: true });
         addForm.scrollIntoView({ block: "nearest" });
       });
+      // Several lines pasted into "Dodaj składnik": one ingredient per line, after a preview.
+      onMultiPaste(addForm.ing, (lines) => {
+        const parsed = lines.map((l) => parseItem(l, codes()));
+        previewBatch({
+          entries: parsed.map((p) => ({ text: p.name, sub: qtyText(p.amount, p.unit) })),
+          buttonKey: "paste_add_ingredients",
+          onConfirm(kept) {
+            const rows = kept.map((i) => ({ k: key(), kind: "ing", text: parsed[i].name, qty: qtyText(parsed[i].amount, parsed[i].unit) }));
+            d.rows.push(...rows);
+            paintRows();
+            addForm.scrollIntoView({ block: "nearest" });
+            batchToast("paste_added_ingredients", rows.length, () => { d.rows = d.rows.filter((r) => !rows.includes(r)); paintRows(); });
+          }
+        });
+      });
       sheet.querySelector("[data-add-sec]").addEventListener("click", () => {
         const row = { k: key(), kind: "sec", text: "" };
         d.rows.push(row);
@@ -303,7 +320,56 @@ export function openEditor(id, restored = null) {
           const v = e.target.value.replace(/\D/g, "");
           if (v !== e.target.value) e.target.value = v;
           s.timer = v;
-        } else { s.text = e.target.value; grow(e.target); }
+        } else {
+          s.text = e.target.value; grow(e.target);
+          const sp = e.target.closest(".erow").querySelector("[data-split]");
+          if (sp && !sp.hidden) showSplit(e.target);
+        }
+      });
+      // Replace step `s` by one step per entry (the first keeps its timer); undo puts it back.
+      const spreadSteps = (s, texts) => {
+        const before = s.text;
+        const extra = texts.slice(1).map((x) => ({ k: key(), text: x, timer: "" }));
+        s.text = texts[0];
+        d.steps.splice(d.steps.indexOf(s) + 1, 0, ...extra);
+        paintSteps();
+        const n = texts.length;
+        batchToast("paste_added_steps", n, () => { s.text = before; d.steps = d.steps.filter((x) => !extra.includes(x)); paintSteps(); });
+      };
+      // A paragraph in a step offers "Podziel na kroki"; the label names how many steps it gives.
+      const showSplit = (ta) => {
+        const sp = ta.closest(".erow").querySelector("[data-split]");
+        const n = splitSentences(ta.value).length;
+        sp.hidden = n < 2 || /\n/.test(ta.value);
+        if (!sp.hidden) sp.textContent = t("paste_split_to", { n });
+      };
+      // Several lines pasted into an empty step: one step per line, after a preview.
+      onMultiPaste(stepsBox, (lines, e) => {
+        const s = rowOf(e.target, d.steps);
+        if (!s) return;
+        previewBatch({
+          entries: lines.map((text) => ({ text })),
+          buttonKey: "paste_add_steps",
+          onConfirm(kept) { spreadSteps(s, kept.map((i) => lines[i])); }
+        });
+      }, { when: (e) => e.target.matches('textarea[data-f="text"]') && !e.target.value.trim() });
+      // One pasted paragraph: show "Podziel na kroki" once the text is in.
+      stepsBox.addEventListener("paste", (e) => {
+        const ta = e.target;
+        if (!ta.matches || !ta.matches('textarea[data-f="text"]') || e.defaultPrevented) return;
+        setTimeout(() => showSplit(ta), 0);
+      });
+      stepsBox.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-split]");
+        if (!b) return;
+        const s = rowOf(b, d.steps);
+        const parts = splitSentences(s.text);
+        if (!s || parts.length < 2) return;
+        previewBatch({
+          entries: parts.map((text) => ({ text })),
+          buttonKey: "paste_split_to",
+          onConfirm(kept) { spreadSteps(s, kept.map((i) => parts[i])); }
+        });
       });
       stepsBox.addEventListener("click", (e) => {
         if (!e.target.closest("[data-del]")) return;

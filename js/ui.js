@@ -109,8 +109,10 @@ let current = null;
 
 // headHtml: extra buttons in the sheet head (before the close button). sticky: a tap on the scrim
 // does not close it (long forms such as the recipe editor). cls: extra class on the sheet.
-export function openSheet({ title, body, tall = false, onMount, onClose, label, headHtml = "", sticky = false, cls = "" }) {
-  if (current) current.close(true, true);
+// stack: open on top of the current sheet instead of replacing it (the paste preview over an editor).
+export function openSheet({ title, body, tall = false, onMount, onClose, label, headHtml = "", sticky = false, cls = "", stack = false }) {
+  const below = stack ? current : null;
+  if (current && !stack) current.close(true, true);
   const opener = document.activeElement;
   const scrim = document.createElement("div");
   scrim.className = "scrim";
@@ -127,7 +129,7 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label, 
   const close = (instant, replaced = false) => {
     if (closed) return;
     closed = true;
-    if (current && current.scrim === scrim) current = null;
+    if (current && current.scrim === scrim) current = below && below.scrim.isConnected ? below : null;
     document.removeEventListener("keydown", onKey);
     const done = () => {
       scrim.remove();
@@ -141,6 +143,7 @@ export function openSheet({ title, body, tall = false, onMount, onClose, label, 
     setTimeout(done, 200);
   };
   const onKey = (e) => {
+    if (current && current.scrim !== scrim) return; // a sheet stacked on top of this one handles keys
     if (e.key === "Escape") close();
     if (e.key === "Tab") trapFocus(e, sheet);
   };

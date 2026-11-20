@@ -10,6 +10,7 @@ import { esc, icon, categoryGlyph, openSheet, toast, store, reducedMotion } from
 import { state, insertRow, updateRow, deleteRow, deleteRows, optimistic, putLocal, dropLocal, byId, getBackend, refresh } from "../store.js";
 import { header, setEyebrow, settingsButton, registerView, go } from "../shell.js";
 import { parseItem, matchRule, suggest, nameKey, toNumber } from "../parse.js";
+import { onMultiPaste, previewBatch, snapshot, undoBatch, batchToast } from "../paste.js";
 import { catById, otherCat, catName, unitCodes, unitChipsHtml, bindUnitChips, categoryFieldHtml, bindCategoryField } from "../pickers.js";
 
 const TICK_DELAY = 600;   // ms to change your mind before a ticked item moves to "Kupione"
@@ -176,6 +177,8 @@ function initAdd(root) {
     const opt = options[active] || options[options.length - 1];
     if (opt) add(root, opt);
   });
+  // Several lines pasted: one item per line, after a preview.
+  onMultiPaste(input, (lines) => pasteLines(root, lines));
   // Keep the keyboard open when a suggestion is tapped.
   box.addEventListener("pointerdown", (e) => e.preventDefault());
   box.addEventListener("click", (e) => {
@@ -224,6 +227,26 @@ function add(root, opt) {
   if (!res || res.status === "new") return;
   toast(t(res.status === "merged" ? "list_already" : "list_back_on", { name: res.name }));
   flash(root, res.id);
+}
+
+// A pasted list: each line goes through parseItem and addToList (so a name already on the list is
+// merged, as with typing). One undo removes the new rows and restores the merged ones.
+function pasteLines(root, lines) {
+  const parsed = lines.map((l) => parseItem(l, unitCodes()));
+  previewBatch({
+    entries: parsed.map((p) => ({ text: p.name, sub: fmtAmount(p.amount, p.unit) })),
+    buttonKey: "paste_add_items",
+    onConfirm(kept) {
+      const snap = snapshot("shopping");
+      for (const i of kept) {
+        const p = parsed[i];
+        const known = [...state.shopping, ...state.pantry].find((x) => nameKey(x.name) === nameKey(p.name) && catById(x.categoryId));
+        addToList({ name: p.name, amount: p.amount, unit: p.unit, categoryId: known ? known.categoryId : guessCategory(p.name) });
+      }
+      hideAc(root);
+      batchToast("paste_added_items", kept.length, () => undoBatch("shopping", snap, ["amount", "unit", "checked"]));
+    }
+  });
 }
 
 // Brief highlight of a row that was merged into, after the next paint.
