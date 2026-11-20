@@ -6,12 +6,13 @@ UI design for v1 (and where v2 fits). **What** we build is in [PRODUCT.md](PRODU
 
 **Canvas:** https://claude.ai/artifact/YbZ1pd22wgBKPT8NK55e1L (Claude Design, private until shared from the page's Share menu)
 
-It has two pages:
+It has three pages:
 
 | Page | Artboards |
 |---|---|
 | **Wireframes (v1)** | `Main.dc.html` (Shopping list), `WF-Pantry.dc.html`, `WF-Recipes.dc.html`, `WF-Account.dc.html` |
 | **Hi-fi proposals A–D** | `Hifi-A-Leaflet.dc.html`, `Hifi-B-Revolut.dc.html`, `Hifi-C-Wolt.dc.html`, `Hifi-D-Tiles.dc.html` (each: 3 screens × light + dark, plus a token/type column), `Hifi-A-Accents.dc.html` (accent options for A) |
+| **Plan (M8–M9)** | `Plan-Day.dc.html` (V2–V4), `Plan-People.dc.html` (V5–V6), `Plan-AtHome.dc.html` (V7–V8), `Plan-Edge.dc.html` (V9–V11); direction A, Matcha, light + dark |
 
 All screens are 390×844 phone frames. UI copy is Polish; notes, file names and token names are English (TECH-GUIDELINES §0).
 
@@ -35,7 +36,7 @@ All screens are 390×844 phone frames. UI copy is Polish; notes, file names and 
 | O1 | **Sign in / sign up** | One screen with segmented *Zaloguj się / Załóż konto*, e-mail, password, reset link | Account |
 | O2 | **Household — create or join** | Two cards: create (name → get a code) or join with a 6-character code | Account |
 | S1 | **Settings sheet** | Household name, invite code with *Udostępnij*, members, theme *Auto / Jasny / Ciemny*, accent swatches, categories & order, *Wyloguj się* | Account |
-| V2 | **Plan tab placement (v2)** | Tab bar grows to 4: List · Pantry · Recipes · **Plan** (Plan is the 4th slot, rightmost). Sketch of the week strip, meals with "3/6 w domu", and *Dodaj braki do listy* | Account |
+| V2 (wireframe) | **Plan tab placement (v2)** | Tab bar grows to 4: List · Pantry · Recipes · **Plan** (Plan is the 4th slot, rightmost). Sketch of the week strip, meals with "3/6 w domu", and *Dodaj braki do listy* | Account |
 
 Cross-cutting rules shown in the wireframes (copy follows the UX copy rules below since 2026-11-12):
 - Floating tab bar: dark pill, 3 slots in v1, 4 in v2; hidden on recipe detail, cooking mode and while typing in the add field.
@@ -196,3 +197,38 @@ No board exists for these either; they reuse the M7.2 macros block and the A lis
 - **Estimates look like typed-in macros:** "ok. 480 kcal" and the same four tiles. Under them, "2 składniki bez danych" is a muted underlined text button that opens the editor at *Produkty*; when nothing can be computed (no amounts at all), only that line shows.
 - **Produkty in R3** sits inside *Makro na porcję*, not on each ingredient row, so the rows stay as they are. The head shows matched/total ("6/7"), the hint gives the live estimate per serving. Rows without data come first in a soft group (name, "Bez danych" or the food with "bez ilości", and *Wybierz* or *Zmień*); matched rows fold under "6 dopasowanych".
 - **Food picker** is a stacked tall sheet over the editor: the ingredient's name, a search field, then a radio list (*Dopasuj po nazwie* first, then every food with "143 kcal w 100 g").
+
+---
+
+## 4. Plan tab (M8) and list from the plan (M9), hi-fi
+
+Added 2026-11-20, before any M8 code. Direction A, Matcha accent, the copy rules above. Canvas page **Plan (M8–M9)**; each board shows light (top row) and dark (bottom row) at 390 px.
+
+Sample data on every board: range pt 20 – cz 26 lis (the default "next 7 days"), people Diana (1 700 kcal target) and Gienek (no target), slot shares 25/15/35/25%.
+
+| ID | Screen / state | Key elements | Board |
+|---|---|---|---|
+| V2 | **Plan, day view** | Eyebrow "4/7 dni zaplanowane", title *Plan*, gear. Range pill "pt 20 – cz 26 lis" (opens V3) and *Lista z planu* (opens V7). Day strip = Leaflet `.week`: ring around each date fills by planned slots (0–4), ink pill on the selected day, arrows page through the range. Day head "Piątek, 20 lis" + *Kopiuj dzień*. Day totals per person: "ok. 1 717 kcal / cel 1 700" with "B 78 g, T 52 g, W 214 g"; "bez celu" when no target. Four slots with their share; each meal card: accent glyph tile, name, portion pills "Diana 1,2" "Gienek 1", right "3/6 w domu". 4-slot tab bar, Plan active. | Plan-Day |
+| V3 | **Range sheet** | Presets *7 dni od dziś* (default), *5 dni od jutra*, *Ten tydzień*, *Weekend*; month calendar, range as an accent band with ink start/end; past days faint. Button says the result: *Pokaż 7 dni*. | Plan-Day |
+| V4 | **Add meal sheet** | Title = slot ("Obiad"), date under it. Search, chips (slot preselected, *Dietetyk*, *Wszystkie*), radio list of recipes with "ok. 496 kcal, 30 min" and "3/6 w domu". *Kto je*: person chips, all on by default, dashed *+ Gość*. Live portion preview per person ("1,2 porcji, 35% z 1 700 kcal, 595 kcal"; "1 porcja, bez celu"). Button *Dodaj do obiadu*. | Plan-Day |
+| V5 | **People and slot shares** | From Ustawienia → *Kto je*: people rows (name, "1 700 kcal dziennie" or "Bez celu", *Gość* tag), dashed *Dodaj osobę*. *Podział kalorii na posiłki* with a 4-part bar and a ±5% stepper per slot, total "100%", hint "Dotyczy osób z celem kcal", *Przywróć 25/15/35/25*. | Plan-People |
+| V6 | **Person sheet (new guest)** | *Imię*, *Cel kcal* (placeholder "Bez celu", suffix "kcal dziennie"), hint "Bez celu porcja to 1", switch *Gość* ("Nie dodawaj do „Wszyscy”"), *Dodaj osobę*. | Plan-People |
+| V7 | **Co jest w domu (M9)** | Opened by *Lista z planu*. Eyebrow "4 dni, 15 posiłków, 2 osoby". Day picker (planned days on, empty days outlined and off). Three groups: *Do kupienia 14* (checked; "potrzeba 400 g, w domu 0" and the amount to add "+400 g"; "na liście 2" when already on the list), *W domu 4* (unchecked, "w domu" tag), *Przyprawy i podstawy 4* (unchecked). Sticky *Dodaj 14 do listy*. Shown twice: top and scrolled. | Plan-AtHome |
+| V8 | **List after adding** | Items merged into their categories with "z planu" in the second line ("400 g, z planu"); toast "Dodano 14 z planu" + *Cofnij* removes the whole batch. | Plan-AtHome |
+| V9 | **No plan yet** | Empty rings, *Lista z planu* disabled, accent icon, "Nic nie zaplanowane", *Dodaj śniadanie*, link "Kto je: Diana, Gienek". | Plan-Edge |
+| V10 | **Meal sheet, person without target** | Tap a meal: per-person portion and kcal, "Razem do zakupów 2,2 porcji" (what M9 uses), note "Bez celu porcja to 1." + *Ustaw cel*, chips *Powtórz jutro*, *Przenieś*, *Kto je*, *Usuń z planu* / *Otwórz przepis*. | Plan-Edge |
+| V11 | **Recipe without macros** | Meal card gets an outlined "bez makro" pill, portions stay 1; day totals say "1 posiłek bez makro" and use "ok."; note "Bez makro porcja to 1, a suma dnia jest niepełna." + *Uzupełnij* (opens R3 at *Produkty*). | Plan-Edge |
+
+### Rules shown on the boards
+- **Portion** for a person with a target = slot share × target ÷ recipe kcal per serving, shown with one decimal ("1,2"). Without a target or without macros it is 1. Total servings for M9 = the sum over people.
+- **"ok."** on a day total whenever any meal in it is estimated or has no macros.
+- **Accent use** stays as in A: selected day ring and slot tiles, active tab, "w domu" tags; warnings are outlined, never accent-filled.
+- **No new components**: everything is a Leaflet card, group row, chip, sheet, or `.week`; the 4-slot tab bar is 330 px.
+
+### Open questions (decide before M8 code)
+1. **Portion rounding:** one decimal ("1,2 porcji") as drawn, or kitchen-friendly quarters ("1¼")? Quarters are easier to cook but miss the kcal target by up to ~10%.
+2. **Guests:** a normal person you add and delete later, or a *Gość* flag that keeps them out of the "everyone" default (as drawn in V6)? The flag needs one boolean on `meal_people`.
+3. **Staples in M9:** a fixed list (sól, pieprz, oliwa, cukier, mąka…) or a per-product "zawsze w domu" switch in the pantry? The switch is more accurate but adds UI to P2.
+4. **Past days:** may the range include past days (for copying a good day), or only today onward?
+5. **Copy a day / repeat a meal:** V2 has *Kopiuj dzień* and V10 *Powtórz jutro*; is "repeat for the next 2 days" (the dietitian's rule) a separate action or the same one used twice?
+
